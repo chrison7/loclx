@@ -63,9 +63,18 @@ def emit(*parts: str, end: str = "\n") -> None:
     with _print_lock:
         try:
             sys.stdout.write(text)
-        except UnicodeEncodeError:
-            sys.stdout.write(text.encode("utf-8", "replace").decode("ascii", "replace"))
-        sys.stdout.flush()
+        except Exception:
+            try:
+                if hasattr(sys.stdout, "buffer"):
+                    sys.stdout.buffer.write(text.encode("utf-8", "replace"))
+                else:
+                    sys.stdout.write(text.encode("ascii", "replace").decode("ascii"))
+            except Exception:
+                pass
+        try:
+            sys.stdout.flush()
+        except Exception:
+            pass
 
 
 def format_distance(meters: float) -> str:

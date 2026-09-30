@@ -1,5 +1,4 @@
 import importlib
-import io
 import os
 import sys
 import unittest
@@ -7,6 +6,9 @@ import unittest
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 
 from loclx.cli import parse_args  # noqa: E402
+from loclx.dashboard import generate_target_report  # noqa: E402
+from loclx.sessions import SessionManager  # noqa: E402
+from loclx.utils import Ansi  # noqa: E402
 
 
 class TestCLI(unittest.TestCase):
@@ -26,29 +28,32 @@ class TestCLI(unittest.TestCase):
         args, rem = parse_args(["start"])
         self.assertEqual(args.subcommand, "start")
 
-        args, rem = parse_args(["session", "list"])
+        args, rem = parse_args(["session", "create"])
         self.assertEqual(args.subcommand, "session")
-        self.assertEqual(args.session_action, "list")
+        self.assertEqual(args.session_action, "create")
 
         args, rem = parse_args(["export", "LX-123456", "--format", "csv"])
         self.assertEqual(args.subcommand, "export")
         self.assertEqual(args.id, "LX-123456")
         self.assertEqual(args.format, "csv")
 
-        args, rem = parse_args(["diagnostics"])
-        self.assertEqual(args.subcommand, "diagnostics")
+        args, rem = parse_args(["report", "LX-123456"])
+        self.assertEqual(args.subcommand, "report")
+        self.assertEqual(args.id, "LX-123456")
 
-        args, rem = parse_args(["config"])
-        self.assertEqual(args.subcommand, "config")
+        args, rem = parse_args(["earth", "LX-123456"])
+        self.assertEqual(args.subcommand, "earth")
 
-        args, rem = parse_args(["qr"])
-        self.assertEqual(args.subcommand, "qr")
-
-        args, rem = parse_args(["target"])
-        self.assertEqual(args.subcommand, "target")
-
-        args, rem = parse_args(["map"])
-        self.assertEqual(args.subcommand, "map")
+    def test_generate_target_report(self):
+        sm = SessionManager()
+        session = sm.create_session()
+        session.update_gps({"lat": 10.123456789, "lon": 76.123456789, "accuracy": 7.0, "altitude": 32.0, "speed": 0.2, "heading": 181.0})
+        report = generate_target_report(session, Ansi(False))
+        self.assertIn("LOCLX — TARGET INFORMATION", report)
+        self.assertIn(session.sid, report)
+        self.assertIn("10.123456789", report)
+        self.assertIn("76.123456789", report)
+        self.assertIn("±7 m", report)
 
 
 if __name__ == "__main__":

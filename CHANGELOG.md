@@ -1,15 +1,23 @@
 # Changelog
 
+## v2.1.2
+
+Session-centric terminal OSINT workflow release inspired by information-gathering tools.
+
+### Added
+- **Session-Centric Terminal Workflow**: LOCLX terminal acts as central controller and listener.
+- **Session-Specific URLs**: Dedicated collection endpoints (`/session/<SESSION_ID>`, `/dashboard/<SESSION_ID>`, `/api/session/<SESSION_ID>/report`, `/api/session/<SESSION_ID>/qr`).
+- **Target Connection Notification**: Real-time console notifications when a browser connects to a session URL (`[+] SESSION CONNECTED`).
+- **Hound-Style Intelligence Reports**: Added `loclx report <ID>` command generating formatted terminal reports aggregating Session, Device, Network, IP Location, GPS Location, Map links, and Discrepancy Analysis.
+- **High-Accuracy Geolocation Settings**: Configured `enableHighAccuracy: true`, `timeout: 15000`, `maximumAge: 0` for browser GPS capture.
+- **Subcommand Expansion**: Added `loclx session create`, `loclx target`, `loclx map`, `loclx earth`, `loclx report`, `loclx live`.
+- **Session-Specific QR Code**: ASCII QR code generator encodes `/session/<SESSION_ID>` instead of root URL.
+- **Minimal Browser Client**: Streamlined consent landing page focused on clear location permission request.
+- **Regression Unit Tests**: Expanded test suite to verify session routing, connection events, report generation, and map link formatting.
+
 ## v2.1.1
 
 Important bugfix release establishing a strict **terminal-first** architecture.
-
-### Fixed
-- **Browser Auto-Launch Removal**: Completely removed `webbrowser` import and all automatic browser opening calls across startup, `loclx dashboard`, and menu options.
-- **Terminal Startup Output**: Updated startup banner and loop output to clearly communicate that browser auto-launching is disabled and server URLs must be opened manually.
-- **`--no-browser` Flag**: Deprecated `--no-browser` flag in CLI parser, making zero browser auto-launching the permanent default.
-- **Subcommand Updates**: `loclx dashboard`, `loclx map`, and `loclx earth` now print URLs directly to terminal for manual user navigation.
-- **Regression Unit Tests**: Added regression tests in `tests/test_cli.py` ensuring `cli.py` contains no `webbrowser` import and does not trigger browser opening.
 
 ## v2.1.0
 

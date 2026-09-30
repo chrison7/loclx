@@ -31,6 +31,10 @@ class Session:
         self.timeout_seconds = timeout_seconds if timeout_seconds is not None else get_default_ttl()
         self.expires_at = self.created_at + self.timeout_seconds
         self.last_activity = self.created_at
+        self.first_seen: Optional[float] = None
+        self.last_seen: Optional[float] = None
+        self.client_ip: str = "—"
+        self.connected: bool = False
         self.status = "ACTIVE"
         self.gps_updates = 0
         self.current_fix: Optional[dict[str, Any]] = None
@@ -41,7 +45,18 @@ class Session:
     def touch(self) -> None:
         now = time.time()
         self.last_activity = now
+        self.last_seen = now
+        if self.first_seen is None:
+            self.first_seen = now
         self.expires_at = now + self.timeout_seconds
+
+    def mark_connected(self, ip: str) -> None:
+        now = time.time()
+        self.connected = True
+        self.client_ip = ip
+        if self.first_seen is None:
+            self.first_seen = now
+        self.touch()
 
     def is_expired(self) -> bool:
         if self.status == "EXPIRED":
@@ -92,14 +107,19 @@ class Session:
 
     def to_dict(self) -> dict[str, Any]:
         uptime = time.time() - self.created_at
+        first_s = time.strftime("%H:%M:%S", time.localtime(self.first_seen)) if self.first_seen else "—"
+        last_s = time.strftime("%H:%M:%S", time.localtime(self.last_seen)) if self.last_seen else "—"
         return {
             "id": self.sid,
             "status": self.status,
+            "connected": self.connected,
+            "client_ip": self.client_ip,
             "created": time.strftime("%H:%M:%S", time.localtime(self.created_at)),
             "created_at": self.created_at,
             "expires_at": self.expires_at,
+            "first_seen": first_s,
+            "last_seen": last_s,
             "lastActivity": time.strftime("%H:%M:%S", time.localtime(self.last_activity)),
-            "last_seen": self.last_activity,
             "gpsUpdates": self.gps_updates,
             "update_count": self.gps_updates,
             "currentFix": self.current_fix,

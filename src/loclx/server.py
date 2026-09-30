@@ -1,4 +1,4 @@
-"""HTTP API Server and Static Web Asset Server for LOCLX v2.1.0."""
+"""HTTP API Server and Static Web Asset Server for LOCLX v2.1.2."""
 
 from __future__ import annotations
 
@@ -6,12 +6,15 @@ import json
 import os
 import sys
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Optional
 
 from loclx import VERSION
+from loclx.dashboard import generate_target_report
 from loclx.diagnostics import DiagnosticRunner
 from loclx.ipinfo import IPManager
+from loclx.qrcode import generate_ascii_qr
 from loclx.security import MAX_REQUEST_BODY, RateLimiter, sanitize_input
 from loclx.sessions import Session, SessionManager
 from loclx.utils import Ansi, emit, format_distance, format_uptime
@@ -91,8 +94,16 @@ class LabHandler(BaseHTTPRequestHandler):
         url_path = self.path.split("?")[0]
 
         if url_path == "/" or url_path == "/index.html":
+            session = get_active_session()
+            self._notify_connection(session, client_ip)
             self.serve_file("index.html", "text/html; charset=utf-8")
-        elif url_path == "/dashboard" or url_path == "/dashboard.html":
+        elif url_path.startswith("/session/"):
+            parts = url_path.strip("/").split("/")
+            sid = parts[1] if len(parts) >= 2 else ""
+            session = _session_manager.get_session(sid) or get_active_session()
+            self._notify_connection(session, client_ip)
+            self.serve_file("index.html", "text/html; charset=utf-8")
+        elif url_path == "/dashboard" or url_path == "/dashboard.html" or url_path.startswith("/dashboard/"):
             self.serve_file("dashboard.html", "text/html; charset=utf-8")
         elif url_path == "/app.js":
             self.serve_file("app.js", "application/javascript; charset=utf-8")
@@ -141,6 +152,18 @@ class LabHandler(BaseHTTPRequestHandler):
                     return
                 if len(parts) == 4 and parts[3] == "history":
                     self.send_json(200, session.storage.get_history())
+                elif len(parts) == 4 and parts[3] == "report":
+                    report = generate_target_report(session, Ansi(False))
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/plain; charset=utf-8")
+                    self.send_header("Content-Length", str(len(report.encode("utf-8"))))
+                    self.send_cors_headers()
+                    self.end_headers()
+                    self.wfile.write(report.encode("utf-8"))
+                elif len(parts) == 4 and parts[3] == "qr":
+                    sess_url = f"http://{BIND_ADDR}:{self.server.server_address[1]}/session/{session.sid}"
+                    qr = generate_ascii_qr(sess_url)
+                    self.send_json(200, {"id": session.sid, "url": sess_url, "qr": qr})
                 elif len(parts) == 4 and parts[3] == "export":
                     fmt = self.path.split("format=")[-1] if "format=" in self.path else "json"
                     if fmt == "csv":
@@ -182,7 +205,7 @@ class LabHandler(BaseHTTPRequestHandler):
 
         if url_path == "/report" or url_path == "/api/session/location":
             session = get_active_session()
-            self._handle_location_update(session, payload)
+            self._handle_location_update(session, payload, client_ip)
             self.send_json(200, {"status": "ok", "sessionId": session.sid})
         elif url_path == "/api/session":
             session = _session_manager.create_session()
@@ -196,7 +219,7 @@ class LabHandler(BaseHTTPRequestHandler):
                     self.send_json(404, {"error": "Session not found"})
                     return
                 if len(parts) == 4 and parts[3] == "location":
-                    self._handle_location_update(session, payload)
+                    self._handle_location_update(session, payload, client_ip)
                     self.send_json(200, {"status": "ok"})
                 elif len(parts) == 4 and parts[3] == "stop":
                     session.stop()
@@ -230,7 +253,23 @@ class LabHandler(BaseHTTPRequestHandler):
         else:
             self.send_error(404, "Not Found")
 
-    def _handle_location_update(self, session: Session, payload: dict[str, Any]) -> None:
+    def _notify_connection(self, session: Session, client_ip: str) -> None:
+        if not session.connected:
+            session.mark_connected(client_ip)
+            c = Ansi(True)
+            t = time.strftime("%H:%M:%S")
+            emit(c.green("\n[+] SESSION CONNECTED"))
+            emit(c.dim("──────────────────────────────────────────────"))
+            emit(c.bold(f"Session : {session.sid}"))
+            emit(f"Client  : connected")
+            emit(f"Time    : {t}")
+            emit(f"IP      : {client_ip}")
+            emit(c.dim("──────────────────────────────────────────────\n"))
+
+    def _handle_location_update(self, session: Session, payload: dict[str, Any], client_ip: str) -> None:
+        if not session.connected:
+            session.mark_connected(client_ip)
+
         gps_data = payload.get("gps")
         ip_data = payload.get("ip")
         browser_data = payload.get("browser")
@@ -250,12 +289,16 @@ class LabHandler(BaseHTTPRequestHandler):
 
         # Emit live update notification to terminal console
         c = Ansi(True)
-        emit(c.green(f"\n[+] GPS update received for Session {session.sid}"))
+        emit(c.green(f"\n[+] GPS UPDATE #{session.gps_updates} RECEIVED FOR SESSION {session.sid}"))
         if session.current_fix:
-            emit(c.cyan(f"  Latitude : {session.current_fix['lat']:.6f}"))
-            emit(c.cyan(f"  Longitude: {session.current_fix['lon']:.6f}"))
+            emit(c.cyan(f"  Latitude   : {session.current_fix['lat']:.9f}"))
+            emit(c.cyan(f"  Longitude  : {session.current_fix['lon']:.9f}"))
             if session.current_fix.get("accuracy"):
-                emit(c.cyan(f"  Accuracy : ±{session.current_fix['accuracy']:.0f} m"))
+                emit(c.cyan(f"  Accuracy   : ±{session.current_fix['accuracy']:.0f} m"))
+            if session.current_fix.get("speed") is not None:
+                emit(c.cyan(f"  Speed      : {session.current_fix['speed']:.1f} m/s"))
+            if session.current_fix.get("heading") is not None:
+                emit(c.cyan(f"  Heading    : {session.current_fix['heading']:.0f}°"))
 
         diff = session.calculate_ip_gps_diff()
         if diff is not None:

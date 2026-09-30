@@ -87,6 +87,23 @@ def format_accuracy(acc: Any) -> str:
     return f"±{val:.1f} m"
 
 
+def classify_gps_quality(acc: Any) -> str:
+    """Classify GPS accuracy into HIGH, GOOD, MODERATE, LOW, or COARSE quality levels."""
+    if not is_valid_number(acc):
+        return "UNKNOWN"
+    val = float(acc)
+    if val <= 25.0:
+        return "HIGH"
+    elif val <= 100.0:
+        return "GOOD"
+    elif val <= 1000.0:
+        return "MODERATE"
+    elif val <= 10000.0:
+        return "LOW"
+    else:
+        return "COARSE"
+
+
 def format_altitude(alt: Any) -> str:
     if not is_valid_number(alt):
         return "n/a"

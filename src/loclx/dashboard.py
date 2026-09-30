@@ -361,7 +361,7 @@ def generate_compact_information_report(session: Session, c: Optional[Ansi] = No
 
     b = d.get("browserInfo") or {}
     ip = d.get("ipInfo") or {}
-    fix = d.get("currentFix") or {}
+    fix = d.get("bestFix") or d.get("currentFix") or {}
 
     lat_s = f"{fix.get('lat'):.9f}" if fix.get("lat") is not None else "—"
     lon_s = f"{fix.get('lon'):.9f}" if fix.get("lon") is not None else "—"

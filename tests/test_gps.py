@@ -4,7 +4,7 @@ import unittest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 
-from loclx.gps import GPSFix, format_accuracy, format_altitude, haversine_m, validate_coordinates  # noqa: E402
+from loclx.gps import GPSFix, classify_gps_quality, format_accuracy, format_altitude, haversine_m, validate_coordinates  # noqa: E402
 
 
 class TestGPS(unittest.TestCase):
@@ -22,6 +22,14 @@ class TestGPS(unittest.TestCase):
         self.assertEqual(format_accuracy(8.0), "±8 m")
         self.assertEqual(format_accuracy(12.5), "±12.5 m")
         self.assertEqual(format_accuracy(None), "n/a")
+
+    def test_classify_gps_quality(self):
+        self.assertEqual(classify_gps_quality(15.0), "HIGH")
+        self.assertEqual(classify_gps_quality(50.0), "GOOD")
+        self.assertEqual(classify_gps_quality(500.0), "MODERATE")
+        self.assertEqual(classify_gps_quality(5000.0), "LOW")
+        self.assertEqual(classify_gps_quality(25000.0), "COARSE")
+        self.assertEqual(classify_gps_quality(None), "UNKNOWN")
 
     def test_format_altitude(self):
         self.assertEqual(format_altitude(34.0), "34 m")

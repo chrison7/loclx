@@ -433,10 +433,10 @@ def main(argv: Optional[list[str]] = None) -> int:
 
     if args.tunnel:
         tunnel_base = args.tunnel.rstrip("/")
-        public_sess_url = f"{tunnel_base}/session/{session.sid}"
-        emit(c.bold(c.cyan(f"[+] Capture endpoint ready\n    {public_sess_url}\n")))
+        emit(c.bold(c.cyan(f"[+] Capture URL:\n    {tunnel_base}/\n")))
     else:
-        emit(c.green("[+] Local listener ready\n"))
+        capture_url = f"http://{BIND_ADDR}:{bound_port}/"
+        emit(c.bold(c.cyan(f"[+] Capture URL:\n    {capture_url}\n")))
 
     emit(c.amber("[*] Waiting for connection..."))
     emit(c.dim("[*] Press Ctrl+C to stop.\n"))

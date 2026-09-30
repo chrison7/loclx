@@ -1,6 +1,16 @@
 # Changelog
 
-## v2.4.1
+## v2.4.2
+
+Maintenance and feature release introducing best GPS fix accuracy tracking, BrokenPipe handling, and explicit root capture URL display.
+
+### Fixed / Added
+- **Explicit Capture URL Display**: Immediately displays `[+] Capture URL:` (e.g. `http://127.0.0.1:<bound_port>/`) derived dynamically from actual bound socket port upon server startup.
+- **BrokenPipe & Disconnect Safety**: Added exception handlers wrapping socket writes to safely absorb `BrokenPipeError` and `ConnectionResetError` without emitting Python tracebacks.
+- **Favicon & Static Asset Handling**: Explicitly handles `/favicon.ico` returning `204 No Content` and guarantees `200 OK` for static assets (`/`, `/index.html`, `/app.js`, `/style.css`).
+- **Best GPS Fix Selection**: Tracks and selects the highest-accuracy GPS fix (`best_fix`), logging `[+] BETTER GPS FIX` when accuracy improves (e.g. `±25000 m → ±18 m`).
+- **Map Links Synchronization**: Generated Google Maps, Google Earth, and OpenStreetMap URLs always synchronize with the best available GPS fix coordinates.
+- **GPS Quality Classification**: Categorizes GPS accuracy into `HIGH` (<= 25m), `GOOD` (<= 100m), `MODERATE` (<= 1000m), `LOW` (<= 10000m), or `COARSE` (> 10000m).
 
 Major architecture update separating the Operator Terminal and Participant Browser Page into clean, distinct interfaces.
 

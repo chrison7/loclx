@@ -28,6 +28,38 @@ class TestServer(unittest.TestCase):
             body = resp.read().decode("utf-8")
             self.assertIn("Browser Information Demo", body)
 
+    def test_favicon(self):
+        req = urllib.request.Request(f"{self.server_url}favicon.ico")
+        with urllib.request.urlopen(req) as resp:
+            self.assertEqual(resp.status, 204)
+
+    def test_static_assets(self):
+        for path in ("app.js", "style.css"):
+            req = urllib.request.Request(f"{self.server_url}{path}")
+            with urllib.request.urlopen(req) as resp:
+                self.assertEqual(resp.status, 200)
+
+    def test_best_gps_fix_tracking(self):
+        sess = self.sm.create_session()
+        # Initial coarse fix (25,000m)
+        sess.update_gps({"lat": 10.1, "lon": 76.1, "accuracy": 25000.0})
+        self.assertEqual(sess.best_accuracy, 25000.0)
+        self.assertEqual(sess.best_fix["lat"], 10.1)
+
+        # Better fix (800m)
+        is_better, old_a, new_a = sess.update_gps({"lat": 10.12, "lon": 76.12, "accuracy": 800.0})
+        self.assertTrue(is_better)
+        self.assertEqual(old_a, 25000.0)
+        self.assertEqual(new_a, 800.0)
+        self.assertEqual(sess.best_accuracy, 800.0)
+        self.assertEqual(sess.best_fix["lat"], 10.12)
+
+        # Worse fix (12000m) - best_fix should remain 800.0 (10.12, 76.12)
+        is_better_2, old_a2, new_a2 = sess.update_gps({"lat": 10.15, "lon": 76.15, "accuracy": 12000.0})
+        self.assertFalse(is_better_2)
+        self.assertEqual(sess.best_accuracy, 800.0)
+        self.assertEqual(sess.best_fix["lat"], 10.12)
+
     def test_get_dashboard(self):
         req = urllib.request.Request(f"{self.server_url}dashboard")
         with urllib.request.urlopen(req) as resp:

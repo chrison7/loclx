@@ -4,12 +4,16 @@
 ========================================================
                      LOCLX
               Location Intelligence
-                      v2.4.1
+                      v2.4.2
 ========================================================
 
 LOCLX - Authorized Security Testing Tool
+
 [+] Listener started
 [+] Address: 127.0.0.1:8765
+
+[+] Capture URL:
+    http://127.0.0.1:8765/
 
 [*] Waiting for connection...
 [*] Press Ctrl+C to stop.
@@ -19,7 +23,7 @@ LOCLX - Authorized Security Testing Tool
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Parrot%20OS%20%7C%20Kali%20Linux%20%7C%20macOS%20%7C%20WSL-lightgrey.svg)]()
 
-LOCLX (Live Location & Information eXtractor) v2.4.1 is a professional Linux security and OSINT laboratory tool featuring a dual-interface architecture:
+LOCLX (Live Location & Information eXtractor) v2.4.2 is a professional Linux security and OSINT laboratory tool featuring a dual-interface architecture:
 1. **Operator Terminal**: Primary intelligence controller displaying listener status, real-time target connection events, device metadata, consent-based GPS fixes, map links, and live location streams.
 2. **Browser Participant Landing Page**: Clean, modern, professional neutral web page ("Browser Information Demo") that clearly explains the demo purpose and requests location permission exclusively via standard browser Geolocation API prompts.
 

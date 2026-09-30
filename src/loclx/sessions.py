@@ -38,6 +38,9 @@ class Session:
         self.status = "ACTIVE"
         self.gps_updates = 0
         self.current_fix: Optional[dict[str, Any]] = None
+        self.best_fix: Optional[dict[str, Any]] = None
+        self.best_accuracy: Optional[float] = None
+        self.best_fix_timestamp: Optional[str] = None
         self.ip_info: Optional[dict[str, Any]] = None
         self.browser_info: Optional[BrowserInfo] = None
         self.storage = SessionStorage()
@@ -66,12 +69,18 @@ class Session:
             return True
         return False
 
-    def update_gps(self, gps_data: dict[str, Any]) -> None:
+    def update_gps(self, gps_data: dict[str, Any]) -> tuple[bool, Optional[float], Optional[float]]:
+        """Update session GPS data.
+
+        Returns (is_better_fix, old_best_accuracy, new_best_accuracy).
+        """
+        old_best_acc = self.best_accuracy
         if self.is_expired() or self.status == "STOPPED":
-            return
+            return False, old_best_acc, old_best_acc
+
         self.touch()
         self.gps_updates += 1
-        self.current_fix = {
+        fix = {
             "lat": float(gps_data["lat"]),
             "lon": float(gps_data["lon"]),
             "accuracy": float(gps_data["accuracy"]) if gps_data.get("accuracy") is not None else None,
@@ -80,7 +89,25 @@ class Session:
             "speed": float(gps_data["speed"]) if gps_data.get("speed") is not None else None,
             "timestamp": time.strftime("%H:%M:%S"),
         }
-        self.storage.add_record(self.current_fix)
+        self.current_fix = fix
+        self.storage.add_record(fix)
+
+        acc = fix["accuracy"]
+        is_better = False
+
+        if acc is not None:
+            if self.best_accuracy is None or acc < self.best_accuracy:
+                is_better = True
+                self.best_fix = fix
+                self.best_accuracy = acc
+                self.best_fix_timestamp = fix["timestamp"]
+        elif self.best_fix is None:
+            is_better = True
+            self.best_fix = fix
+            self.best_accuracy = None
+            self.best_fix_timestamp = fix["timestamp"]
+
+        return is_better, old_best_acc, self.best_accuracy
 
     def set_ip_info(self, ip_data: dict[str, Any]) -> None:
         self.touch()
@@ -91,12 +118,13 @@ class Session:
         self.browser_info = BrowserInfo.from_dict(browser_data)
 
     def calculate_ip_gps_diff(self) -> Optional[float]:
-        if not self.ip_info or not self.current_fix:
+        fix = self.best_fix or self.current_fix
+        if not self.ip_info or not fix:
             return None
         ip_lat = self.ip_info.get("lat")
         ip_lon = self.ip_info.get("lon")
-        gps_lat = self.current_fix.get("lat")
-        gps_lon = self.current_fix.get("lon")
+        gps_lat = fix.get("lat")
+        gps_lon = fix.get("lon")
         if ip_lat is None or ip_lon is None or gps_lat is None or gps_lon is None:
             return None
         return haversine_m(float(ip_lat), float(ip_lon), float(gps_lat), float(gps_lon))
@@ -124,6 +152,11 @@ class Session:
             "update_count": self.gps_updates,
             "currentFix": self.current_fix,
             "gps_fix": self.current_fix,
+            "bestFix": self.best_fix or self.current_fix,
+            "best_fix": self.best_fix or self.current_fix,
+            "bestAccuracy": self.best_accuracy,
+            "best_accuracy": self.best_accuracy,
+            "best_fix_timestamp": self.best_fix_timestamp,
             "ipInfo": self.ip_info,
             "ip_information": self.ip_info,
             "browserInfo": self.browser_info.to_dict() if self.browser_info else None,

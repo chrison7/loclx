@@ -104,6 +104,22 @@ class TestGuard(unittest.TestCase):
         self.assertIn("http://www.w3.org/2000/svg", html)
         self.assertIn("gps-acc-viz", html)
 
+    def test_world_view_map(self):
+        self.assertTrue(hasattr(self.loclx, "HTML_PAGE"))
+        html = self.loclx.HTML_PAGE
+        self.assertIn("worldMarker", html)
+        self.assertIn("updateWorldView", html)
+        forbidden_map_assets = [
+            "tile.openstreetmap",
+            "leaflet",
+            "mapbox",
+            "googleapis.com/maps",
+            '<img src="http',
+            "cdn.",
+        ]
+        for asset in forbidden_map_assets:
+            self.assertNotIn(asset, html)
+
     def test_no_forbidden_strings_in_tracked_files(self):
         tracked_files = get_tracked_files()
         violations = []

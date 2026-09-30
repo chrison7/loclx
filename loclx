@@ -393,6 +393,29 @@ HTML_PAGE = """<!DOCTYPE html>
   <div class="row"><span class="k">longitude</span><span class="v" id="gps-lon">—</span></div>
   <div class="row"><span class="k">accuracy</span><span class="v" id="gps-acc">—</span></div>
   <div class="row"><span class="k">accuracy viz</span><span class="v" id="gps-acc-viz">—</span></div>
+  <div class="row"><span class="k">global view</span><span class="v" id="gps-world-viz">
+    <svg width="360" height="180" viewBox="0 0 360 180" style="display:block; background:#080c12; border:1px solid var(--border); border-radius:4px; margin-top:4px;">
+      <line x1="0" y1="30" x2="360" y2="30" stroke="#1e2b3a" stroke-width="0.4" />
+      <line x1="0" y1="60" x2="360" y2="60" stroke="#1e2b3a" stroke-width="0.4" />
+      <line x1="0" y1="90" x2="360" y2="90" stroke="#1e2b3a" stroke-width="0.4" />
+      <line x1="0" y1="120" x2="360" y2="120" stroke="#1e2b3a" stroke-width="0.4" />
+      <line x1="0" y1="150" x2="360" y2="150" stroke="#1e2b3a" stroke-width="0.4" />
+      <line x1="30" y1="0" x2="30" y2="180" stroke="#1e2b3a" stroke-width="0.4" />
+      <line x1="60" y1="0" x2="60" y2="180" stroke="#1e2b3a" stroke-width="0.4" />
+      <line x1="90" y1="0" x2="90" y2="180" stroke="#1e2b3a" stroke-width="0.4" />
+      <line x1="120" y1="0" x2="120" y2="180" stroke="#1e2b3a" stroke-width="0.4" />
+      <line x1="150" y1="0" x2="150" y2="180" stroke="#1e2b3a" stroke-width="0.4" />
+      <line x1="180" y1="0" x2="180" y2="180" stroke="#1e2b3a" stroke-width="0.4" />
+      <line x1="210" y1="0" x2="210" y2="180" stroke="#1e2b3a" stroke-width="0.4" />
+      <line x1="240" y1="0" x2="240" y2="180" stroke="#1e2b3a" stroke-width="0.4" />
+      <line x1="270" y1="0" x2="270" y2="180" stroke="#1e2b3a" stroke-width="0.4" />
+      <line x1="300" y1="0" x2="300" y2="180" stroke="#1e2b3a" stroke-width="0.4" />
+      <line x1="330" y1="0" x2="330" y2="180" stroke="#1e2b3a" stroke-width="0.4" />
+      <rect x="0" y="0" width="360" height="180" fill="none" stroke="#1e2b3a" stroke-width="0.4" />
+      <circle id="worldMarker" r="2.5" fill="#00ff9c"></circle>
+      <text id="worldLabel" font-size="6" font-family="monospace" fill="#00ff9c"></text>
+    </svg>
+  </span></div>
   <div class="row"><span class="k">altitude</span><span class="v" id="gps-alt">—</span></div>
   <div class="row"><span class="k">updated</span><span class="v" id="gps-at">—</span></div>
   <div class="btns">
@@ -420,6 +443,8 @@ HTML_PAGE = """<!DOCTYPE html>
   let ipInfo = null;
   let lastGps = null;
   let watchId = null;
+  let lastErrorAt = 0;
+  let lastErrorKey = "";
   const logEl = document.getElementById("netlog");
 
   function setText(id, text, cls) {
@@ -519,6 +544,22 @@ HTML_PAGE = """<!DOCTYPE html>
     container.appendChild(svg);
   }
 
+  function updateWorldView(lat, lon) {
+    const x = (lon + 180) / 360 * 360;
+    const y = (90 - lat) / 180 * 180;
+    const marker = document.getElementById("worldMarker");
+    const label = document.getElementById("worldLabel");
+    if (marker) {
+      marker.setAttribute("cx", x);
+      marker.setAttribute("cy", y);
+    }
+    if (label) {
+      label.setAttribute("x", x + 4);
+      label.setAttribute("y", y - 3);
+      label.textContent = lat.toFixed(2) + ", " + lon.toFixed(2);
+    }
+  }
+
   function showVerdict() {
     if (!ipInfo || lastGps == null) return;
     if (typeof ipInfo.lat !== "number" || typeof ipInfo.lon !== "number") return;
@@ -601,6 +642,8 @@ HTML_PAGE = """<!DOCTYPE html>
     const acc = c.accuracy;
     const alt = c.altitude;
     lastGps = { lat: lat, lon: lon, accuracy: acc, altitude: alt };
+    lastErrorAt = 0;
+    lastErrorKey = "";
     setText("gps-status", "fix received", "ok");
     setText("gps-lat", lat.toFixed(6));
     setText("gps-lon", lon.toFixed(6));
@@ -611,6 +654,7 @@ HTML_PAGE = """<!DOCTYPE html>
       setText("gps-acc", "n/a");
       updateAccuracySvg(null);
     }
+    updateWorldView(pos.coords.latitude, pos.coords.longitude);
     setText("gps-alt", typeof alt === "number" ? Math.round(alt) + " m" : "n/a");
     setText("gps-at", new Date().toLocaleString());
     showVerdict();
@@ -632,6 +676,13 @@ HTML_PAGE = """<!DOCTYPE html>
   function geoError(err) {
     const msg = ERR[err.code] || ("geolocation error " + err.code);
     setText("gps-status", msg, "bad");
+    const key = String(err.code);
+    const now = Date.now();
+    if (key === lastErrorKey && (now - lastErrorAt) < 30000) {
+      return;
+    }
+    lastErrorAt = now;
+    lastErrorKey = key;
     netlog(msg);
   }
 

@@ -22,7 +22,12 @@ class TestCLI(unittest.TestCase):
         self.assertEqual(args.port, 8765)
         self.assertFalse(args.debug)
         self.assertFalse(args.lab)
+        self.assertIsNone(args.tunnel)
         self.assertIsNone(args.subcommand)
+
+    def test_parse_tunnel_arg(self):
+        args, rem = parse_args(["--tunnel", "https://custom-tunnel.loclx.io"])
+        self.assertEqual(args.tunnel, "https://custom-tunnel.loclx.io")
 
     def test_parse_subcommands(self):
         args, rem = parse_args(["start"])

@@ -1,4 +1,4 @@
-"""Terminal-first session-centric CLI for LOCLX v2.3.0."""
+"""Terminal-first Hound-style CLI for LOCLX v2.4.0."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ import time
 from typing import Optional
 
 from loclx import VERSION
-from loclx.dashboard import TerminalDashboard, generate_target_report
+from loclx.dashboard import TerminalDashboard, generate_compact_information_report, generate_target_report
 from loclx.diagnostics import DiagnosticRunner
 from loclx.ipinfo import IPManager
 from loclx.qrcode import generate_ascii_qr
@@ -21,45 +21,15 @@ from loclx.utils import Ansi, configure_stdio, emit, format_distance, format_upt
 
 def print_banner(c: Ansi) -> None:
     banner = r"""
-╔══════════════════════════════════════════════════════════╗
-║                         LOCLX                            ║
-║     LIVE LOCATION & INFORMATION eXTRACTOR                ║
-║                         v2.3.0                           ║
-╚══════════════════════════════════════════════════════════╝"""
-    emit(c.green(banner))
+========================================================
+                     LOCLX
+              Location Intelligence
+                      v2.4.0
+========================================================
 
-
-def print_grouped_menu(c: Ansi) -> None:
-    width = min(max(shutil.get_terminal_size().columns - 2, 52), 60)
-    sep = c.dim("─" * width)
-
-    emit(c.bold(c.cyan("  LOCLX MAIN MENU")))
-    emit(sep)
-
-    emit(c.bold(c.cyan("\n  SESSION")))
-    emit(f"   {c.green('[1]')} Create Session")
-    emit(f"   {c.green('[2]')} List Sessions")
-    emit(f"   {c.green('[3]')} Session Information")
-    emit(f"   {c.green('[4]')} Stop Session")
-
-    emit(c.bold(c.cyan("\n  INFORMATION")))
-    emit(f"   {c.green('[5]')} Target Information")
-    emit(f"   {c.green('[6]')} GPS Information")
-    emit(f"   {c.green('[7]')} IP Intelligence")
-    emit(f"   {c.green('[8]')} Browser Information")
-
-    emit(c.bold(c.cyan("\n  ANALYSIS")))
-    emit(f"   {c.green('[9]')} Live Dashboard")
-    emit(f"   {c.green('[10]')} Location History")
-    emit(f"   {c.green('[11]')} Map / Earth Links")
-
-    emit(c.bold(c.cyan("\n  TOOLS")))
-    emit(f"   {c.green('[12]')} Generate Report")
-    emit(f"   {c.green('[13]')} Export Session")
-    emit(f"   {c.green('[14]')} QR Code")
-    emit(f"   {c.green('[15]')} Diagnostics\n")
-
-    emit(f"   {c.red('[0]')} Exit\n")
+LOCLX - Authorized Security Testing Tool
+Consent-based browser GPS collection"""
+    emit(c.bold(c.cyan(banner)))
 
 
 def run_lab_mode(c: Ansi) -> None:
@@ -107,9 +77,9 @@ def print_session_creation(session, server_url: str, c: Ansi) -> None:
     sess_url = f"{server_url}session/{session.sid}"
     dash_url = f"{server_url}dashboard/{session.sid}"
     box_art = r"""
-╔══════════════════════════════════════════════════════════╗
-║                    LOCLX SESSION                         ║
-╚══════════════════════════════════════════════════════════╝"""
+========================================================
+                     LOCLX SESSION
+========================================================"""
     emit(c.green(box_art))
     emit(c.bold(c.green("\n[+] Session Created\n")))
     emit("ID:")
@@ -184,7 +154,7 @@ def print_map_visualization(session, server_url: str, c: Ansi) -> None:
         lat = fix['lat']
         lon = fix['lon']
         lat_lon_s = f"{lat:.9f},{lon:.9f}"
-        osm_lat_lon = f"mlat={lat:.6f}&mlon={lon:.6f}#map=16/{lat:.6f}/{lon:.6f}"
+        osm_lat_lon = f"mlat={lat:.6f}&mlon={lon:.6f}"
         emit("GPS:")
         emit(f"{lat_lon_s}\n")
     else:
@@ -194,7 +164,7 @@ def print_map_visualization(session, server_url: str, c: Ansi) -> None:
         emit("None available yet\n")
 
     emit("Google Maps:")
-    emit(f"https://www.google.com/maps/search/?api=1&query={lat_lon_s}\n")
+    emit(f"https://www.google.com/maps?q={lat_lon_s}\n")
     emit("Google Earth:")
     emit(f"https://earth.google.com/web/search/{lat_lon_s}\n")
     emit("OpenStreetMap:")
@@ -255,7 +225,7 @@ def resolve_session_arg(target_id: Optional[str], c: Ansi) -> Optional[tuple[Any
 def parse_args(argv: list[str]) -> tuple[argparse.Namespace, Optional[list[str]]]:
     parser = argparse.ArgumentParser(
         prog="loclx",
-        description="LOCLX v2.3.0 — Live Location & Information eXtractor (Terminal-First OSINT Tool).",
+        description="LOCLX v2.4.0 — Live Location & Information eXtractor (Terminal-First OSINT Tool).",
         epilog=f"The bind address is fixed at {BIND_ADDR} and cannot be changed.",
     )
     parser.add_argument(
@@ -269,6 +239,12 @@ def parse_args(argv: list[str]) -> tuple[argparse.Namespace, Optional[list[str]]
         default=DEFAULT_PORT,
         metavar="INT",
         help=f"preferred port on {BIND_ADDR} (default: {DEFAULT_PORT})",
+    )
+    parser.add_argument(
+        "--tunnel",
+        type=str,
+        default=os.environ.get("LOCLX_TUNNEL_URL"),
+        help="optional authorized tunnel base URL (e.g. https://my-lab-tunnel.com)",
     )
     parser.add_argument(
         "--no-browser",
@@ -318,95 +294,6 @@ def parse_args(argv: list[str]) -> tuple[argparse.Namespace, Optional[list[str]]
     return known, remaining
 
 
-def interactive_menu_loop(server_url: str, c: Ansi) -> None:
-    sm = get_session_manager()
-    dash_renderer = TerminalDashboard(c)
-
-    while True:
-        print_grouped_menu(c)
-        try:
-            raw = input(c.green("LOCLX > "))
-        except (EOFError, KeyboardInterrupt):
-            emit("\n")
-            return
-        choice = raw.strip().lower()
-
-        if choice in ("1", "session create", "create"):
-            session = sm.create_session()
-            print_session_creation(session, server_url, c)
-        elif choice in ("2", "session list", "list"):
-            print_session_list(c)
-        elif choice in ("3", "session info", "info"):
-            session = get_active_session()
-            emit(f"\n{dash_renderer.render_session_info(session)}\n")
-        elif choice in ("4", "session stop", "stop"):
-            session = get_active_session()
-            sm.stop_session(session.sid)
-            emit(c.amber(f"\n[+] Session stopped:\n    {session.sid}\n"))
-        elif choice in ("5", "target"):
-            session = get_active_session()
-            print_target_gps_info(session, c)
-        elif choice in ("6", "gps"):
-            session = get_active_session()
-            print_target_gps_info(session, c)
-        elif choice in ("7", "ip"):
-            ip_mgr = IPManager()
-            info = ip_mgr.fetch_ip_info()
-            if info:
-                emit(c.bold(c.cyan("\n[*] NETWORK GEOLOCATION — APPROXIMATE:")))
-                for k, v in info.items():
-                    emit(f"  {k:<15}: {v}")
-                emit("")
-            else:
-                emit(c.red("\n[-] IP intelligence lookup unavailable.\n"))
-        elif choice in ("8", "browser"):
-            session = get_active_session()
-            if session.browser_info:
-                emit(c.bold(c.cyan("\n[*] BROWSER INFORMATION:")))
-                for k, v in session.browser_info.to_dict().items():
-                    emit(f"  {k:<20}: {v}")
-                emit("")
-            else:
-                emit(c.amber("\n[*] No browser information received yet.\n"))
-        elif choice in ("9", "live", "dashboard"):
-            session = get_active_session()
-            emit(f"\n{dash_renderer.render_live_session(session)}\n")
-        elif choice in ("10", "history"):
-            session = get_active_session()
-            history = session.storage.get_history()
-            emit(c.bold(c.cyan(f"\n[*] Location History for {session.sid} ({len(history)} entries):")))
-            emit(c.dim("#   TIME       LAT          LON          ACC"))
-            for idx, h in enumerate(history, 1):
-                emit(f"{idx:<3} {h['timestamp']:<10} {h['lat']:.6f}   {h['lon']:.6f}   ±{h.get('accuracy') or 0:.0f}m")
-            emit("")
-        elif choice in ("11", "map", "earth"):
-            session = get_active_session()
-            print_map_visualization(session, server_url, c)
-        elif choice in ("12", "report"):
-            session = get_active_session()
-            emit(f"\n{generate_target_report(session, c)}\n")
-        elif choice in ("13", "export"):
-            session = get_active_session()
-            emit(c.bold(c.cyan(f"\n[+] Exporting Session {session.sid} (JSON):")))
-            emit(session.storage.export_json()[:500] + "\n...")
-            emit("")
-        elif choice in ("14", "qr"):
-            session = get_active_session()
-            sess_url = f"{server_url}session/{session.sid}"
-            emit(c.bold(c.cyan(f"\n[+] QR CODE FOR SESSION {session.sid} ({sess_url}):")))
-            emit(generate_ascii_qr(sess_url))
-            emit("")
-        elif choice in ("15", "diagnostics"):
-            port = int(server_url.split(":")[-1].strip("/"))
-            run_diagnostics_cmd(c, port)
-        elif choice == "0" or choice in ("exit", "quit"):
-            return
-        elif choice == "":
-            continue
-        else:
-            emit(c.red("\n[-] Unknown choice. Please enter a valid menu number or command.\n"))
-
-
 def main(argv: Optional[list[str]] = None) -> int:
     configure_stdio()
     args, remaining = parse_args(sys.argv[1:] if argv is None else argv)
@@ -434,7 +321,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     sm = get_session_manager()
     dash_renderer = TerminalDashboard(c)
 
-    # Subcommand execution handling
+    # Subcommand execution handling for admin/debug use
     if args.subcommand == "session":
         act = args.session_action
         if act == "create":
@@ -539,26 +426,36 @@ def main(argv: Optional[list[str]] = None) -> int:
         shutdown_server()
         return 0
 
+    # Default Hound-style capture workflow
     session = get_active_session()
     sess_url = f"{server_url}session/{session.sid}"
     dash_url = f"{server_url}dashboard/{session.sid}"
 
-    emit(c.green(f"[+] LISTENER"))
-    emit(f"    {BIND_ADDR}:{bound_port}\n")
+    emit(c.green(f"\n[+] Local server starting..."))
+    emit(c.green(f"[+] Listening on: {BIND_ADDR}:{bound_port}\n"))
 
-    emit(c.green(f"[+] STATUS"))
-    emit(f"    WAITING FOR SESSION ({session.sid})\n")
+    if args.tunnel:
+        tunnel_base = args.tunnel.rstrip("/")
+        public_sess_url = f"{tunnel_base}/session/{session.sid}"
+        public_dash_url = f"{tunnel_base}/dashboard/{session.sid}"
+        emit(c.green("[+] Tunnel active"))
+        emit(c.bold(c.cyan(f"[*] Public Test Link:\n    {public_sess_url}\n")))
+        emit(c.cyan(f"[*] Dashboard:\n    {public_dash_url}\n"))
+    else:
+        emit(c.green("[+] Running locally"))
+        emit(c.bold(c.cyan(f"[*] Local Link:\n    {sess_url}\n")))
+        emit(c.cyan(f"[*] Dashboard:\n    {dash_url}\n"))
 
-    emit(c.cyan(f"[*] Local collection URL : {sess_url}"))
-    emit(c.cyan(f"[*] Dashboard URL        : {dash_url}"))
-    emit(c.dim("[*] Browser auto-launch   : DISABLED (Terminal-First)\n"))
+    emit(c.amber("[*] Waiting for target..."))
+    emit(c.dim("[*] Share the link with the authorized test participant."))
+    emit(c.dim("[*] Press Ctrl+C to stop.\n"))
 
     try:
-        interactive_menu_loop(server_url, c)
+        while True:
+            time.sleep(0.5)
     except KeyboardInterrupt:
-        emit("\n")
+        emit(c.dim("\n[*] Shutting down LOCLX server..."))
     finally:
-        emit(c.dim("Shutting down LOCLX server..."))
         shutdown_server()
 
     return 0

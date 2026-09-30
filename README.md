@@ -1,36 +1,31 @@
 # LOCLX — Live Location & Information eXtractor
 
 ```
-╔════════════════════════════════════════════════════════════╗
-║                         LOCLX                              ║
-║     LIVE LOCATION & INFORMATION eXTRACTOR                  ║
-║                         v2.3.0                             ║
-╚════════════════════════════════════════════════════════════╝
+========================================================
+                     LOCLX
+              Location Intelligence
+========================================================
+
+LOCLX - Authorized Security Testing Tool
+Consent-based browser GPS collection
 ```
 
 [![Python Version](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Parrot%20OS%20%7C%20Kali%20Linux%20%7C%20macOS%20%7C%20WSL-lightgrey.svg)]()
 
-LOCLX (Live Location & Information eXtractor) v2.3.0 is a terminal-first, session-centric Linux security and OSINT information-gathering tool. It demonstrates the technical boundary between approximate IP-derived network intelligence and precise, user-permissioned browser GPS coordinates.
+LOCLX (Live Location & Information eXtractor) v2.4.0 is a terminal-first, stream-oriented Linux security and OSINT information-gathering tool. It demonstrates the technical boundary between approximate IP-derived network intelligence and precise, user-permissioned browser GPS coordinates.
 
 Designed for security researchers, privacy advocates, educators, and penetration testing laboratories operating on Kali Linux, Parrot OS, Ubuntu, Debian, Termux, WSL, and macOS.
 
 ---
 
-## Terminal-First & Session-Centric Architecture
+## Hound-Style Stream Workflow
 
-LOCLX is **100% terminal-first and session-centric**. Running `./loclx` or executing any subcommand **NEVER** automatically launches a web browser. The terminal acts as the central controller and listener. The browser functions purely as an optional client used when user-permissioned browser location or client metrics are requested.
+LOCLX is **100% terminal-first and stream-oriented**. Running `./loclx` or `python loclx` starts the local server, generates a capture link, enters a live waiting state (`[*] Waiting for target...`), and streams target connections and permission-granted GPS fixes directly to the console.
 
 ```
-LOCLX TERMINAL (Controller & Listener)
-      │
-      ├── Session Manager (LX-XXXXXX Tokens)
-      ├── Target Information Reports (Hound-style)
-      ├── IP Geolocation Engine (APPROXIMATE)
-      ├── Browser Information Engine
-      ├── GPS Information Engine (Explicit User Permission)
-      └── Map / Earth / QR Code Generators
+START → SERVER → GENERATE LINK → WAITING → TARGET CONNECTED → BROWSER INFO → LOCATION PERMISSION → GPS RECEIVED → TARGET REPORT → MAP / EARTH LINKS → LIVE UPDATES
 ```
 
 ---

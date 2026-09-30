@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>LOCLX Security Dashboard v2.3.0</title>
+<title>LOCLX Security Dashboard v2.4.0</title>
 <link rel="stylesheet" href="/style.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 </head>
 <body>
 <div class="wrap">
-<div class="tag">LOCLX v2.3.0 — Security &amp; OSINT Dashboard</div>
+<div class="tag">LOCLX v2.4.0 — Security &amp; OSINT Dashboard</div>
 <div class="sub">Live Session Analytics &amp; Location Discrepancy Analysis</div>
 
 <section class="panel">
@@ -35,7 +35,11 @@
 
 <section class="panel">
   <h2>Live Map &amp; Movement Trail</h2>
-  <div id="mapContainer"></div>
+  <div class="btns" style="margin-bottom:8px;">
+    <button type="button" id="btn-reset-view">Reset View</button>
+    <button type="button" id="btn-toggle-fullscreen">Fullscreen Map</button>
+  </div>
+  <div id="mapContainer" style="height:350px; border-radius:4px;"></div>
 </section>
 
 <section class="panel">

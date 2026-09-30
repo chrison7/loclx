@@ -50,6 +50,14 @@ class TestServer(unittest.TestCase):
             data = json.loads(resp.read().decode("utf-8"))
             self.assertEqual(data["status"], "ok")
 
+    def test_post_permission_denied(self):
+        payload = json.dumps({"denied": True}).encode("utf-8")
+        req = urllib.request.Request(f"{self.server_url}report", data=payload, headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req) as resp:
+            self.assertEqual(resp.status, 200)
+            data = json.loads(resp.read().decode("utf-8"))
+            self.assertEqual(data["status"], "ok")
+
     def test_invalid_session_url(self):
         req = urllib.request.Request(f"{self.server_url}session/LX-FFFFFF")
         with self.assertRaises(urllib.error.HTTPError) as cm:

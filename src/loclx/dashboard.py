@@ -349,3 +349,101 @@ def generate_target_report(session: Session, c: Optional[Ansi] = None) -> str:
     lines.append(header_sep)
 
     return "\n".join(lines)
+
+
+def generate_compact_information_report(session: Session, c: Optional[Ansi] = None) -> str:
+    """Generate compact Hound-style LOCLX Information Report."""
+    ansi = c or Ansi(True)
+    d = session.to_dict()
+
+    sep = ansi.dim("----------------------------------------")
+    header_sep = ansi.cyan("========================================================")
+
+    b = d.get("browserInfo") or {}
+    ip = d.get("ipInfo") or {}
+    fix = d.get("currentFix") or {}
+
+    lat_s = f"{fix.get('lat'):.9f}" if fix.get("lat") is not None else "—"
+    lon_s = f"{fix.get('lon'):.9f}" if fix.get("lon") is not None else "—"
+    acc_s = format_accuracy(fix.get("accuracy")) if fix.get("accuracy") is not None else "—"
+    alt_s = str(fix.get("altitude")) if fix.get("altitude") is not None else "n/a"
+    spd_s = f"{fix['speed']:.1f} m/s" if fix.get("speed") is not None else "n/a"
+    hdg_s = f"{fix['heading']:.0f}°" if fix.get("heading") is not None else "n/a"
+
+    lines = [
+        header_sep,
+        ansi.bold(ansi.cyan("              LOCLX INFORMATION REPORT")),
+        header_sep,
+        "",
+        ansi.bold(ansi.cyan("DEVICE INFORMATION")),
+        sep,
+        f"{'User Agent':<20}: {b.get('userAgent') or '—'}",
+        f"{'Platform':<20}: {b.get('platform') or '—'}",
+        f"{'Browser':<20}: {b.get('browser') or '—'}",
+        f"{'Browser Version':<20}: {b.get('browserVersion') or '—'}",
+        f"{'Language':<20}: {b.get('language') or '—'}",
+        f"{'Timezone':<20}: {b.get('timezone') or '—'}",
+        f"{'Screen':<20}: {b.get('screenResolution') or '—'}",
+        f"{'Viewport':<20}: {b.get('viewportSize') or '—'}",
+        f"{'CPU Cores':<20}: {b.get('cpuCores') or '—'}",
+        f"{'Device Pixel Ratio':<20}: {b.get('devicePixelRatio') or '1'}",
+        f"{'Touch Support':<20}: {b.get('touchSupport') or '—'}",
+        "",
+        ansi.bold(ansi.green("GPS LOCATION")),
+        sep,
+        f"{'Latitude':<20}: {lat_s}",
+        f"{'Longitude':<20}: {lon_s}",
+        f"{'Accuracy':<20}: {acc_s}",
+        f"{'Altitude':<20}: {alt_s}",
+        f"{'Speed':<20}: {spd_s}",
+        f"{'Heading':<20}: {hdg_s}",
+        f"{'Timestamp':<20}: {fix.get('timestamp') or '—'}",
+        "",
+        ansi.bold(ansi.cyan("TARGET NETWORK")),
+        sep,
+        f"{'IP':<20}: {ip.get('ip') or d.get('client_ip') or '—'}",
+        "",
+        ansi.bold(ansi.cyan("IP LOCATION")),
+        sep,
+        f"{'Country':<20}: {ip.get('country') or '—'}",
+        f"{'Region':<20}: {ip.get('region') or '—'}",
+        f"{'City':<20}: {ip.get('city') or '—'}",
+        f"{'Latitude':<20}: {ip.get('lat') if ip.get('lat') is not None else '—'}",
+        f"{'Longitude':<20}: {ip.get('lon') if ip.get('lon') is not None else '—'}",
+        f"{'Precision':<20}: APPROXIMATE",
+        "",
+        ansi.bold(ansi.amber("LOCATION ANALYSIS")),
+        sep,
+    ]
+
+    diff = d.get("diffMeters")
+    if diff is not None:
+        lines.append(f"{'GPS → IP Distance':<20}: {format_distance(diff)}")
+    else:
+        lines.append(f"{'GPS → IP Distance':<20}: —")
+    lines.append(f"{'GPS Precision':<20}: BROWSER REPORTED")
+    lines.append(f"{'IP Precision':<20}: APPROXIMATE")
+
+    lines.extend([
+        "",
+        ansi.bold(ansi.cyan("MAP LINKS")),
+        sep,
+    ])
+
+    if fix and "lat" in fix and "lon" in fix:
+        lat = fix["lat"]
+        lon = fix["lon"]
+        lat_lon_9 = f"{lat:.9f},{lon:.9f}"
+        lat_6 = f"{lat:.6f}"
+        lon_6 = f"{lon:.6f}"
+        lines.extend([
+            f"{'Google Maps':<20}: https://www.google.com/maps?q={lat_lon_9}",
+            f"{'Google Earth':<20}: https://earth.google.com/web/search/{lat_lon_9}",
+            f"{'OpenStreetMap':<20}: https://www.openstreetmap.org/?mlat={lat_6}&mlon={lon_6}",
+        ])
+    else:
+        lines.append("GPS Fix: None available yet.")
+
+    lines.append(header_sep)
+    return "\n".join(lines)
+

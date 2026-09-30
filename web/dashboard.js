@@ -1,11 +1,14 @@
 /**
- * LOCLX Security Dashboard JavaScript v2.3.0
+ * LOCLX Security Dashboard JavaScript v2.4.0
  */
 (function () {
   let leafletMap = null;
   let marker = null;
   let circle = null;
   let polyline = null;
+  let ipMarker = null;
+  let connectionLine = null;
+  let lastGpsCoords = null;
 
   function getSessionId() {
     const parts = window.location.pathname.split("/").filter(Boolean);
@@ -24,16 +27,38 @@
         maxZoom: 19,
         attribution: "&copy; OpenStreetMap"
       }).addTo(leafletMap);
-      polyline = L.polyline([], { color: "#00ff9c" }).addTo(leafletMap);
+      polyline = L.polyline([], { color: "#00ff9c", weight: 3 }).addTo(leafletMap);
     }
 
     const sid = getSessionId();
     pollActiveSession(sid);
     setInterval(function () { pollActiveSession(sid); }, 3000);
 
+    const btnResetView = document.getElementById("btn-reset-view");
+    const btnFullscreen = document.getElementById("btn-toggle-fullscreen");
     const btnExportJson = document.getElementById("btn-export-json");
     const btnExportCsv = document.getElementById("btn-export-csv");
     const btnClearHistory = document.getElementById("btn-clear-history");
+
+    if (btnResetView) {
+      btnResetView.onclick = function () {
+        if (leafletMap && lastGpsCoords) {
+          leafletMap.setView(lastGpsCoords, 14);
+        } else if (leafletMap) {
+          leafletMap.setView([20, 0], 2);
+        }
+      };
+    }
+
+    if (btnFullscreen && mapContainer) {
+      btnFullscreen.onclick = function () {
+        if (!document.fullscreenElement) {
+          if (mapContainer.requestFullscreen) mapContainer.requestFullscreen();
+        } else {
+          if (document.exitFullscreen) document.exitFullscreen();
+        }
+      };
+    }
 
     if (btnExportJson) {
       btnExportJson.onclick = function () {
@@ -83,6 +108,7 @@
         if (elemUpdates) elemUpdates.textContent = updates;
 
         if (fix) {
+          lastGpsCoords = [fix.lat, fix.lon];
           if (elemLastFix) {
             elemLastFix.textContent =
               fix.lat.toFixed(6) +
@@ -126,11 +152,36 @@
           }
         }
 
-        if (ipInfo) {
+        if (ipInfo && typeof ipInfo.lat === "number" && typeof ipInfo.lon === "number") {
+          const ipCoords = [ipInfo.lat, ipInfo.lon];
           if (elemIpLoc) {
             const place = [ipInfo.city, ipInfo.region, ipInfo.country].filter(Boolean).join(", ");
-            const coords = (ipInfo.lat && ipInfo.lon) ? " (" + ipInfo.lat.toFixed(4) + ", " + ipInfo.lon.toFixed(4) + ")" : "";
+            const coords = " (" + ipInfo.lat.toFixed(4) + ", " + ipInfo.lon.toFixed(4) + ")";
             elemIpLoc.textContent = (place || "Unknown") + coords + " [APPROXIMATE]";
+          }
+          if (leafletMap && L) {
+            if (!ipMarker) {
+              ipMarker = L.circleMarker(ipCoords, {
+                radius: 6,
+                color: "#ffaa00",
+                fillColor: "#ffaa00",
+                fillOpacity: 0.8
+              }).addTo(leafletMap);
+            } else {
+              ipMarker.setLatLng(ipCoords);
+            }
+            if (fix) {
+              const gpsCoords = [fix.lat, fix.lon];
+              if (!connectionLine) {
+                connectionLine = L.polyline([ipCoords, gpsCoords], {
+                  color: "#ffaa00",
+                  dashArray: "5, 5",
+                  weight: 2
+                }).addTo(leafletMap);
+              } else {
+                connectionLine.setLatLngs([ipCoords, gpsCoords]);
+              }
+            }
           }
         }
 

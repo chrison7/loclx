@@ -11,7 +11,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Optional
 
 from loclx import VERSION
-from loclx.dashboard import generate_target_report
+from loclx.dashboard import generate_compact_information_report, generate_target_report
 from loclx.diagnostics import DiagnosticRunner
 from loclx.ipinfo import IPManager
 from loclx.qrcode import generate_ascii_qr
@@ -327,13 +327,35 @@ class LabHandler(BaseHTTPRequestHandler):
             session.mark_connected(client_ip)
             c = Ansi(True)
             t = time.strftime("%H:%M:%S")
-            emit(c.green("\n[+] SESSION CONNECTED"))
-            emit(c.dim("──────────────────────────────────────────────"))
-            emit(c.bold(f"Session : {session.sid}"))
-            emit(f"Client  : {client_ip}")
-            emit(f"Time    : {t}")
-            emit(f"Status  : {session.status}")
-            emit(c.dim("──────────────────────────────────────────────\n"))
+            sep = "----------------------------------------"
+            header_sep = "========================================================"
+
+            b = session.browser_info.to_dict() if session.browser_info else {}
+
+            emit(c.green("\n[+] TARGET CONNECTED\n"))
+            emit(c.cyan(header_sep))
+            emit(c.bold(c.cyan("              LOCLX TARGET INFORMATION")))
+            emit(c.cyan(header_sep))
+            emit("\nTarget connected successfully.\n")
+            emit(c.bold(c.cyan("NETWORK")))
+            emit(c.dim(sep))
+            emit(f"IP Address       : {client_ip}")
+            emit(f"Connection       : HTTP / HTTPS\n")
+            emit(c.bold(c.cyan("DEVICE / BROWSER")))
+            emit(c.dim(sep))
+            emit(f"Browser          : {b.get('browser') or '—'}")
+            emit(f"Version          : {b.get('browserVersion') or '—'}")
+            emit(f"Platform         : {b.get('platform') or '—'}")
+            emit(f"User Agent       : {b.get('userAgent') or '—'}")
+            emit(f"Language         : {b.get('language') or '—'}")
+            emit(f"Timezone         : {b.get('timezone') or '—'}")
+            emit(f"Screen           : {b.get('screenResolution') or '—'}")
+            emit(f"Viewport         : {b.get('viewportSize') or '—'}")
+            emit(f"CPU Cores        : {b.get('cpuCores') or '—'}")
+            emit(f"Device Pixel Ratio: {b.get('devicePixelRatio') or '1'}")
+            emit(f"Touch Support    : {b.get('touchSupport') or '—'}")
+            emit(f"Device Type      : {b.get('deviceType') or 'Desktop'}\n")
+            emit(c.amber("[*] Requesting browser location permission...\n"))
 
     def _handle_location_update(self, session: Session, payload: dict[str, Any], client_ip: str) -> None:
         if not session.connected:
@@ -342,10 +364,7 @@ class LabHandler(BaseHTTPRequestHandler):
         gps_data = payload.get("gps")
         ip_data = payload.get("ip")
         browser_data = payload.get("browser")
-
-        if isinstance(gps_data, dict) and "lat" in gps_data and "lon" in gps_data:
-            if validate_gps_payload(gps_data):
-                session.update_gps(gps_data)
+        denied = payload.get("denied", False)
 
         if isinstance(ip_data, dict):
             session.set_ip_info(ip_data)
@@ -357,22 +376,52 @@ class LabHandler(BaseHTTPRequestHandler):
         if isinstance(browser_data, dict):
             session.set_browser_info(browser_data)
 
-        # Emit live update notification to terminal console
         c = Ansi(True)
-        emit(c.green(f"\n[+] GPS UPDATE #{session.gps_updates} RECEIVED FOR SESSION {session.sid}"))
-        if session.current_fix:
-            emit(c.cyan(f"  Latitude   : {session.current_fix['lat']:.9f}"))
-            emit(c.cyan(f"  Longitude  : {session.current_fix['lon']:.9f}"))
-            if session.current_fix.get("accuracy"):
-                emit(c.cyan(f"  Accuracy   : ±{session.current_fix['accuracy']:.0f} m"))
-            if session.current_fix.get("speed") is not None:
-                emit(c.cyan(f"  Speed      : {session.current_fix['speed']:.1f} m/s"))
-            if session.current_fix.get("heading") is not None:
-                emit(c.cyan(f"  Heading    : {session.current_fix['heading']:.0f}°"))
 
-        diff = session.calculate_ip_gps_diff()
-        if diff is not None:
-            emit(c.amber(f"  IP vs GPS discrepancy: {format_distance(diff)}"))
+        if denied:
+            emit(c.red("\n[-] Location permission denied."))
+            emit(c.dim("[*] Browser/device information may still be available.\n"))
+            return
+
+        if isinstance(gps_data, dict) and "lat" in gps_data and "lon" in gps_data:
+            if validate_gps_payload(gps_data):
+                is_first_gps = (session.gps_updates == 0)
+                session.update_gps(gps_data)
+
+                if is_first_gps:
+                    fix = session.current_fix
+                    lat = fix["lat"]
+                    lon = fix["lon"]
+                    lat_lon_9 = f"{lat:.9f},{lon:.9f}"
+                    lat_6 = f"{lat:.6f}"
+                    lon_6 = f"{lon:.6f}"
+
+                    emit(c.green("\n[+] GPS LOCATION RECEIVED\n"))
+                    emit(f"Latitude         : {lat:.9f}")
+                    emit(f"Longitude        : {lon:.9f}")
+                    emit(f"Accuracy         : {fix.get('accuracy') or 0:.0f} m")
+                    emit(f"Altitude         : {fix.get('altitude') or 'n/a'}")
+                    emit(f"Speed            : {fix.get('speed') or 0:.1f}")
+                    emit(f"Heading          : {fix.get('heading') or 0:.0f}")
+                    emit(f"Timestamp        : {fix.get('timestamp') or '—'}\n")
+                    emit(c.dim("GPS = browser-reported location obtained after explicit permission.\n"))
+                    emit(c.bold(c.cyan("MAP LOCATION")))
+                    emit(c.dim("----------------------------------------\n"))
+                    emit("Google Maps:")
+                    emit(f"https://www.google.com/maps?q={lat_lon_9}\n")
+                    emit("Google Earth:")
+                    emit(f"https://earth.google.com/web/search/{lat_lon_9}\n")
+                    emit("OpenStreetMap:")
+                    emit(f"https://www.openstreetmap.org/?mlat={lat_6}&mlon={lon_6}\n")
+
+                    emit("\n" + generate_compact_information_report(session, c) + "\n")
+                else:
+                    fix = session.current_fix
+                    emit(c.green(f"\n[+] GPS UPDATE"))
+                    emit(f"    Latitude : {fix['lat']:.9f}")
+                    emit(f"    Longitude: {fix['lon']:.9f}")
+                    emit(f"    Accuracy : ±{fix.get('accuracy') or 0:.0f} m")
+                    emit(f"    Time     : {fix.get('timestamp') or '—'}\n")
 
 
 def bind_server(preferred_port: int = DEFAULT_PORT) -> ThreadingHTTPServer:

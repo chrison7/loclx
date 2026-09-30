@@ -1,6 +1,15 @@
 # Changelog
 
-## v2.3.0
+## v2.4.0
+
+Major release transforming the default user experience into a streamlined, Hound-style terminal capture workflow while maintaining internal session isolation and token security.
+
+### Added / Changed
+- **Hound-Style Stream Workflow**: Default execution (`./loclx`) removes the interactive main menu and directly starts the listener, outputs local/tunnel URLs, enters live target waiting state, and streams connection events and GPS fixes directly.
+- **Optional Tunnel Integration**: Added `--tunnel` option to easily configure public lab domains while keeping tunnel auth credentials isolated.
+- **Direct Target Connection & Report Streaming**: Automatically renders Target Information, Device/Browser parameters, Permission-granted GPS fixes, Map links, and Compact Information Reports upon target connection.
+- **Live GPS Watch Updates**: Continuous position tracking with `watchPosition()` rendering live update lines directly to console.
+- **Direct Dashboard Links**: Dashboard printed per capture link (`/dashboard/<TOKEN>`) featuring map controls, IP marker, and IP-to-GPS connection line.
 
 Major release introducing Advanced Location Intelligence, 3D Google Earth Visualization, GeoURI mapping integration, directional bearing calculation, and enhanced location analysis.
 

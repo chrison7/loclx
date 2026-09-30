@@ -1,7 +1,19 @@
 # Changelog
 
+## v2.4.5
+
+Maintenance and documentation release enforcing strict GPS vs. IP location separation, honest accuracy labeling, map link generation using best fix only, and Nginx deployment architecture.
+
+### Fixed / Added
+- **Strict GPS vs. Network Separation**: Explicitly separates browser GPS coordinates (`gps.latitude`, `gps.longitude`, `gps.accuracy`) from IP geolocation estimates (`ip_location.latitude`, `ip_location.longitude`, `ip_location.accuracy`).
+- **Coarse Fix Handling & Status**: Coarse fixes ($> 10000\text{ m}$) are explicitly labeled `COARSE BROWSER FIX` without claiming exactness or performing reverse-geocoding.
+- **Best-Fix Map Link Generation**: All map links (Google Maps, Google Earth, OpenStreetMap) are generated exclusively from `session.best_fix`.
+- **Zero Coordinate Fabrication**: LOCLX strictly reports browser-provided coordinates without modification or substitution.
+- **Nginx Architecture & Public Networking Documentation**: Added documentation covering reverse proxy configuration, secure context (`https://`), trusted proxy header extraction (`X-Real-IP`, `X-Forwarded-For`), and networking prerequisites for public exposure.
+- **Parrot OS / VM Testing Guidance**: Documented virtual machine location limitations when host location hardware is unavailable.
 
 ## v2.4.4
+
 
 Major UI upgrade replacing the centered participant card with a mobile-first, responsive chat/messaging interface.
 

@@ -474,19 +474,25 @@ class LabHandler(BaseHTTPRequestHandler):
 
                 if is_first_gps:
                     emit(c.green("\n[+] LOCATION RECEIVED\n"))
-                    emit(c.bold(c.green("BEST GPS FIX")))
+                    emit(c.bold(c.green("LOCATION")))
                     emit(c.dim("----------------------------------------"))
+                    emit(f"Source        : Browser Geolocation")
                     emit(f"Latitude      : {lat:.9f}")
                     emit(f"Longitude     : {lon:.9f}")
                     emit(f"Accuracy      : {acc_s}")
-                    emit(f"GPS Quality   : {quality}")
+                    emit(f"Quality       : {quality}")
                     if quality == "COARSE":
-                        emit("STATUS        : Waiting for a better browser fix\n")
+                        emit("Status        : COARSE BROWSER FIX\n")
                     else:
                         emit(f"Altitude      : {alt_s}")
                         emit(f"Speed         : {spd_s}")
                         emit(f"Heading       : {hdg_s}")
                         emit(f"Timestamp     : {best.get('timestamp') or '—'}\n")
+
+                    emit(c.bold(c.cyan("NETWORK LOCATION")))
+                    emit(c.dim("----------------------------------------"))
+                    emit(f"Source        : IP geolocation")
+                    emit(f"Accuracy      : APPROXIMATE\n")
 
                     emit(c.bold(c.cyan("MAP LINKS")))
                     emit(c.dim("----------------------------------------"))
@@ -499,12 +505,17 @@ class LabHandler(BaseHTTPRequestHandler):
                     new_acc_str = f"±{int(new_acc)} m" if new_acc == int(new_acc) else format_accuracy(new_acc)
                     emit(c.green(f"\n[+] BETTER GPS FIX"))
                     emit(c.green(f"    Accuracy: {old_acc_str} → {new_acc_str}\n"))
-                    emit(c.bold(c.green("BEST GPS FIX")))
+                    emit(c.bold(c.green("LOCATION")))
                     emit(c.dim("----------------------------------------"))
+                    emit(f"Source        : Browser Geolocation")
                     emit(f"Latitude      : {lat:.9f}")
                     emit(f"Longitude     : {lon:.9f}")
                     emit(f"Accuracy      : {acc_s}")
-                    emit(f"GPS Quality   : {quality}\n")
+                    emit(f"Quality       : {quality}\n")
+                    emit(c.bold(c.cyan("NETWORK LOCATION")))
+                    emit(c.dim("----------------------------------------"))
+                    emit(f"Source        : IP geolocation")
+                    emit(f"Accuracy      : APPROXIMATE\n")
                     emit(c.bold(c.cyan("MAP LINKS")))
                     emit(c.dim("----------------------------------------"))
                     emit(f"Google Maps   : https://www.google.com/maps?q={lat_lon_9}")
@@ -517,6 +528,7 @@ class LabHandler(BaseHTTPRequestHandler):
                     emit(f"    LON      : {curr['lon']:.9f}")
                     emit(f"    ACCURACY : {format_accuracy(curr.get('accuracy'))}")
                     emit(f"    TIME     : {curr.get('timestamp') or '—'}\n")
+
 
 
 

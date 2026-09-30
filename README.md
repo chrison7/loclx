@@ -72,37 +72,52 @@ Map & Earth Links
 
 ---
 
+## Architecture & Location Data Integrity
+
+LOCLX processes location data exclusively through standard browser permission APIs:
+
+```
+LOCLX SERVER (127.0.0.1:8765)
+     ▲
+     │ receives actual browser GPS payload
+REMOTE BROWSER
+     ▲
+     │ requests explicit user permission via Geolocation API
+REMOTE DEVICE'S LOCATION PROVIDER (GPS / Wi-Fi / Cell)
+```
+
+### Strict Location Principles
+1. **Zero Fabrication**: LOCLX strictly displays the coordinates reported by the client browser. Coordinates are never altered, mathematically "corrected", or inferred from IP geolocation.
+2. **GPS vs. Network Separation**: Browser GPS data (`gps.latitude`, `gps.longitude`, `gps.accuracy`) and Network IP geolocation data (`ip_location.latitude`, `ip_location.longitude`, `ip_location.accuracy`) are stored and rendered completely separately. Map links are generated exclusively from `session.best_fix`.
+3. **Honest Quality Labeling**: Accuracy is classified into `HIGH` ($\le 25\text{ m}$), `GOOD` ($\le 100\text{ m}$), `MODERATE` ($\le 1000\text{ m}$), `LOW` ($\le 10000\text{ m}$), or `COARSE` ($> 10000\text{ m}$). Coarse fixes are explicitly labeled `COARSE BROWSER FIX` and are never misrepresented as exact.
+
+---
+
+## Parrot OS & Virtual Machine Testing Note
+
+> When testing LOCLX inside a virtual machine (such as Parrot OS VM or Kali Linux VM), the VM browser may not have access to physical GPS hardware or host OS location services.
+
+In a VM environment, browsers typically fall back to network-based positioning, returning coarse accuracy (e.g., $\pm 25\text{ km}$). This is an expected environment constraint of virtualized hardware, not a software defect or coordinate error. To test high-accuracy GPS ($\le 25\text{ m}$), run the participant browser on a physical mobile device or hardware with native location services enabled.
+
+---
+
 ## Public Deployment & Nginx Reverse Proxy
 
 LOCLX binds strictly to local loopback (`127.0.0.1:8765`) by design. Public exposure must happen through an operator-controlled reverse proxy or secure tunnel.
 
 ```
-PUBLIC HTTPS (https://YOUR_DOMAIN)
-     │
-     ▼
-   Nginx
-     │
-     ▼
-127.0.0.1:8765
-     │
-     ▼
-   LOCLX
+Internet ──> HTTPS (https://example.com) ──> Nginx ──> 127.0.0.1:8765 ──> LOCLX
 ```
 
-### Local Execution (Default)
-```bash
-./loclx
-```
-
-### Public Execution behind Nginx
-1. Configure Nginx (`/etc/nginx/sites-available/loclx`):
+### 1. Nginx Reverse Proxy Configuration
+Create `/etc/nginx/sites-available/loclx`:
 ```nginx
 server {
     listen 443 ssl;
-    server_name YOUR_DOMAIN;
+    server_name example.com;
 
-    ssl_certificate /etc/letsencrypt/live/YOUR_DOMAIN/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/YOUR_DOMAIN/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/example.com/privkey.pem;
 
     location / {
         proxy_pass http://127.0.0.1:8765;
@@ -120,30 +135,24 @@ server {
 }
 ```
 
-2. Start LOCLX with public URL:
+### 2. Launching LOCLX with Public Capture URL
 ```bash
-export LOCLX_PUBLIC_URL=https://YOUR_DOMAIN
+export LOCLX_PUBLIC_URL=https://example.com
 ./loclx
-# Or via flag:
-./loclx --public-url https://YOUR_DOMAIN
+# Or via CLI flag:
+./loclx --public-url https://example.com
 ```
 
-> **Note on Geolocation & HTTPS**: Remote browser Geolocation requires a Secure Context (`https://`). Plain HTTP connections will be denied by modern web browsers.
+### 3. Public Networking Requirements
+> Simply installing Nginx on a local machine does **NOT** make `127.0.0.1` Internet-accessible by itself.
 
----
+To make the Nginx reverse proxy publicly reachable over the Internet, one of the following network configurations is required:
+- **Public IP + DNS**: A public IP address with DNS records pointing to your domain and port 443 forwarded in your router/firewall.
+- **Public VPS Proxy**: A public Cloud/VPS server running Nginx with a secure tunnel back to your local LOCLX service.
+- **Authorized HTTPS Tunnel**: An authorized encrypted HTTPS tunnel client connecting local `127.0.0.1:8765` to a remote HTTPS domain.
 
-## Important GPS Accuracy Limitation
+> **Note on Geolocation & HTTPS**: Modern web browsers mandate a **Secure Context (`https://`)** for the Geolocation API over remote connections. Plain HTTP connections will be denied by browsers.
 
-> LOCLX displays the coordinates actually reported by the browser. High accuracy is requested, but the final accuracy depends on the device, operating system, browser, available location services, network conditions and user settings.
-
-LOCLX classifies reported accuracy into 5 levels:
-- `<= 25 m`: `HIGH`
-- `<= 100 m`: `GOOD`
-- `<= 1000 m`: `MODERATE`
-- `<= 10000 m`: `LOW`
-- `> 10000 m`: `COARSE`
-
-LOCLX never fabricates coordinates, alters coordinates, or falsely labels coarse locations as "exact".
 
 
 ## Startup Output Example

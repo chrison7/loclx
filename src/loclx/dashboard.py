@@ -296,16 +296,17 @@ def generate_target_report(session: Session, c: Optional[Ansi] = None) -> str:
         sep,
     ])
 
-    fix = d.get("currentFix") or {}
-    if fix:
+    best_fix = d.get("bestFix") or d.get("best_fix") or d.get("currentFix") or {}
+    if best_fix:
         lines.extend([
-            f"{'Latitude':<16}: {fix.get('lat'):.9f}",
-            f"{'Longitude':<16}: {fix.get('lon'):.9f}",
-            f"{'Accuracy':<16}: {format_accuracy(fix.get('accuracy'))}",
-            f"{'Altitude':<16}: {fix.get('altitude') or 'n/a'}",
-            f"{'Speed':<16}: {fix.get('speed') or 0:.1f} m/s",
-            f"{'Heading':<16}: {fix.get('heading') or 0:.0f}°",
-            f"{'Timestamp':<16}: {fix.get('timestamp') or '—'}",
+            f"{'Source':<16}: Browser Geolocation",
+            f"{'Latitude':<16}: {best_fix.get('lat'):.9f}",
+            f"{'Longitude':<16}: {best_fix.get('lon'):.9f}",
+            f"{'Accuracy':<16}: {format_accuracy(best_fix.get('accuracy'))}",
+            f"{'Altitude':<16}: {best_fix.get('altitude') or 'n/a'}",
+            f"{'Speed':<16}: {best_fix.get('speed') or 0:.1f} m/s",
+            f"{'Heading':<16}: {best_fix.get('heading') or 0:.0f}°",
+            f"{'Timestamp':<16}: {best_fix.get('timestamp') or '—'}",
         ])
     else:
         lines.append(ansi.amber("Waiting for location permission grant..."))
@@ -316,9 +317,9 @@ def generate_target_report(session: Session, c: Optional[Ansi] = None) -> str:
         sep,
     ])
 
-    if fix and "lat" in fix and "lon" in fix:
-        lat = fix["lat"]
-        lon = fix["lon"]
+    if best_fix and "lat" in best_fix and "lon" in best_fix:
+        lat = best_fix["lat"]
+        lon = best_fix["lon"]
         urls = generate_map_urls(lat, lon)
         lines.extend([
             f"{'Google Maps':<16}: {urls['google_maps']}",
@@ -329,6 +330,7 @@ def generate_target_report(session: Session, c: Optional[Ansi] = None) -> str:
     else:
         lines.append("GPS Fix: None available yet.")
 
+
     lines.extend([
         "",
         ansi.bold(ansi.amber("ANALYSIS")),
@@ -338,8 +340,9 @@ def generate_target_report(session: Session, c: Optional[Ansi] = None) -> str:
     diff = d.get("diffMeters")
     if diff is not None:
         bearing_str = ""
-        if ip and "lat" in ip and "lon" in ip and fix and "lat" in fix and "lon" in fix:
-            deg, cardinal = calculate_bearing(float(ip["lat"]), float(ip["lon"]), float(fix["lat"]), float(fix["lon"]))
+        if ip and "lat" in ip and "lon" in ip and best_fix and "lat" in best_fix and "lon" in best_fix:
+            deg, cardinal = calculate_bearing(float(ip["lat"]), float(ip["lon"]), float(best_fix["lat"]), float(best_fix["lon"]))
+
             bearing_str = f" (Bearing: {deg:.0f}° {cardinal})"
         lines.append(f"{'GPS → IP':<16}: {format_distance(diff)}{bearing_str}")
     else:

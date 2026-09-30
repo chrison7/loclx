@@ -218,6 +218,37 @@ class TestServer(unittest.TestCase):
         self.assertEqual(sess.client_ip, "198.51.100.77")
 
 
+    def test_gps_ip_separation_and_map_links(self):
+        sess = self.sm.create_session()
+        payload = json.dumps({
+            "gps": {"lat": 10.123456789, "lon": 76.123456789, "accuracy": 25000.0},
+            "ip": {"ip": "203.0.113.1", "lat": 12.9716, "lon": 77.5946, "city": "Bengaluru"},
+        }).encode("utf-8")
+
+        req = urllib.request.Request(
+            f"{self.server_url}api/session/{sess.sid}/location",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+        )
+        with urllib.request.urlopen(req) as resp:
+            self.assertEqual(resp.status, 200)
+
+        # Assert GPS and IP locations are strictly separated
+        self.assertIsNotNone(sess.best_fix)
+        self.assertEqual(sess.best_fix["lat"], 10.123456789)
+        self.assertIsNotNone(sess.ip_info)
+        self.assertEqual(sess.ip_info["lat"], 12.9716)
+
+        # Assert report map links use GPS coordinates (10.123456789), NOT IP coordinates (12.9716)
+        from loclx.dashboard import generate_target_report
+        report = generate_target_report(sess)
+        self.assertIn("10.123456789", report)
+        self.assertIn("query=10.123456789,76.123456789", report)
+        self.assertNotIn("query=12.9716", report)
+
+
+
 if __name__ == "__main__":
     unittest.main()
+
 

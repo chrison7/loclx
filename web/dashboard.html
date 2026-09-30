@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LOCLX Security Dashboard</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+</head>
+<body>
+<div class="wrap">
+<div class="tag">LOCLX Security Dashboard</div>
+<div class="sub">Live Session &amp; Location Analytics</div>
+
+<section class="panel">
+  <h2>Session Overview</h2>
+  <div class="row"><span class="k">session id</span><span class="v ok" id="dash-session-id">—</span></div>
+  <div class="row"><span class="k">status</span><span class="v" id="dash-status">—</span></div>
+  <div class="row"><span class="k">uptime</span><span class="v" id="dash-uptime">—</span></div>
+  <div class="row"><span class="k">gps updates</span><span class="v" id="dash-updates">0</span></div>
+  <div class="row"><span class="k">last fix</span><span class="v" id="dash-last-fix">—</span></div>
+  <div class="row"><span class="k">ip vs gps diff</span><span class="v warn" id="dash-diff">—</span></div>
+</section>
+
+<section class="panel">
+  <h2>Live Map &amp; Movement Trail</h2>
+  <div id="mapContainer"></div>
+</section>
+
+<section class="panel">
+  <h2>Session History &amp; Data Export</h2>
+  <div class="btns">
+    <button type="button" id="btn-export-json">Export JSON</button>
+    <button type="button" id="btn-export-csv">Export CSV</button>
+    <button type="button" id="btn-clear-history">Clear History</button>
+  </div>
+  <div id="historyList" style="margin-top:10px; max-height:160px; overflow:auto; font-size:12px;" class="dim"></div>
+</section>
+
+<p><a href="/" class="btn-link">&larr; Return to Lab Page</a></p>
+</div>
+<script src="/dashboard.js"></script>
+</body>
+</html>

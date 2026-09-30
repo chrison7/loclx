@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import unittest
 import subprocess
@@ -63,7 +64,7 @@ class TestGuard(unittest.TestCase):
 
     def test_version_constant(self):
         self.assertTrue(hasattr(self.loclx, "VERSION"))
-        self.assertEqual(self.loclx.VERSION, "1.0.1")
+        self.assertEqual(self.loclx.VERSION, "2.0.0")
 
     def test_bind_addr_fixed(self):
         self.assertTrue(hasattr(self.loclx, "BIND_ADDR"))
@@ -123,7 +124,6 @@ class TestGuard(unittest.TestCase):
         for asset in forbidden_map_assets:
             self.assertNotIn(asset, html)
 
-        import re
         hrefs = re.findall(r'href=["\'](.*?)["\']', html)
         srcs = re.findall(r'src=["\'](.*?)["\']', html)
 

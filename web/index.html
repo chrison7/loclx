@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LOCLX — Live Location & Information eXtractor</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="wrap">
+<pre class="banner">
+ _      ___   ____ _     __  __
+| |    / _ \ / ___| |    \ \/ /
+| |   | | | | |   | |     \  /
+| |___| |_| | |___| |___  /  \
+|_____|\___/ \____|_____|/_/\_\</pre>
+<div class="tag">LOCLX v2.0 — Live Location & Information eXtractor</div>
+<div class="sub">localhost security laboratory · authorized consent mode</div>
+
+<section class="consent-box">
+  <h3>Consent & Permission Notice</h3>
+  <p><strong>LOCLX is requesting access to your device location.</strong></p>
+  <p>This lab demonstrates the distinction between approximate IP-based geolocation and precise browser GPS coordinates. No data will be retrieved until you grant permission.</p>
+  <div class="btns">
+    <button type="button" id="btn-perm">Request Location Permission</button>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>What a link alone reveals (Network IP Estimate)</h2>
+  <div class="row"><span class="k">status</span><span class="v" id="ip-status">idle</span></div>
+  <div class="row"><span class="k">public ip</span><span class="v" id="ip-addr">—</span></div>
+  <div class="row"><span class="k">ip location</span><span class="v" id="ip-place">—</span></div>
+  <div class="row"><span class="k">lat/lon</span><span class="v" id="ip-ll">—</span></div>
+  <div class="row"><span class="k">isp</span><span class="v" id="ip-isp">—</span></div>
+  <div class="row"><span class="k">precision</span><span class="v warn" id="ip-precision">APPROXIMATE</span></div>
+</section>
+
+<section class="panel">
+  <h2>What requires explicit permission (Browser GPS)</h2>
+  <div class="row"><span class="k">gps status</span><span class="v" id="gps-status">waiting for permission grant</span></div>
+  <div class="row"><span class="k">latitude</span><span class="v" id="gps-lat">—</span></div>
+  <div class="row"><span class="k">longitude</span><span class="v" id="gps-lon">—</span></div>
+  <div class="row"><span class="k">accuracy</span><span class="v" id="gps-acc">—</span></div>
+  <div class="row"><span class="k">accuracy viz</span><span class="v" id="gps-acc-viz">—</span></div>
+  <div class="row"><span class="k">global view</span><span class="v" id="gps-world-viz">
+    <svg width="360" height="180" viewBox="0 0 360 180" style="display:block; background:#080c12; border:1px solid var(--border); border-radius:4px; margin-top:4px;">
+      <line x1="0" y1="30" x2="360" y2="30" stroke="#1e2b3a" stroke-width="0.4" />
+      <line x1="0" y1="60" x2="360" y2="60" stroke="#1e2b3a" stroke-width="0.4" />
+      <line x1="0" y1="90" x2="360" y2="90" stroke="#1e2b3a" stroke-width="0.4" />
+      <line x1="0" y1="120" x2="360" y2="120" stroke="#1e2b3a" stroke-width="0.4" />
+      <line x1="0" y1="150" x2="360" y2="150" stroke="#1e2b3a" stroke-width="0.4" />
+      <line x1="30" y1="0" x2="30" y2="180" stroke="#1e2b3a" stroke-width="0.4" />
+      <line x1="60" y1="0" x2="60" y2="180" stroke="#1e2b3a" stroke-width="0.4" />
+      <line x1="90" y1="0" x2="90" y2="180" stroke="#1e2b3a" stroke-width="0.4" />
+      <line x1="120" y1="0" x2="120" y2="180" stroke="#1e2b3a" stroke-width="0.4" />
+      <line x1="150" y1="0" x2="150" y2="180" stroke="#1e2b3a" stroke-width="0.4" />
+      <line x1="180" y1="0" x2="180" y2="180" stroke="#1e2b3a" stroke-width="0.4" />
+      <line x1="210" y1="0" x2="210" y2="180" stroke="#1e2b3a" stroke-width="0.4" />
+      <line x1="240" y1="0" x2="240" y2="180" stroke="#1e2b3a" stroke-width="0.4" />
+      <line x1="270" y1="0" x2="270" y2="180" stroke="#1e2b3a" stroke-width="0.4" />
+      <line x1="300" y1="0" x2="300" y2="180" stroke="#1e2b3a" stroke-width="0.4" />
+      <line x1="330" y1="0" x2="330" y2="180" stroke="#1e2b3a" stroke-width="0.4" />
+      <rect x="0" y="0" width="360" height="180" fill="none" stroke="#1e2b3a" stroke-width="0.4" />
+      <circle id="worldMarker" r="2.5" fill="#00ff9c"></circle>
+      <text id="worldLabel" font-size="6" font-family="monospace" fill="#00ff9c"></text>
+    </svg>
+  </span></div>
+  <div class="row"><span class="k">altitude</span><span class="v" id="gps-alt">—</span></div>
+  <div class="row"><span class="k">updated</span><span class="v" id="gps-at">—</span></div>
+  <div class="btns">
+    <button type="button" id="btn-once" disabled>Request GPS — one shot</button>
+    <button type="button" id="btn-watch" disabled>Start Live Location</button>
+    <button type="button" id="btn-stop" disabled>Stop Live Location</button>
+  </div>
+  <div class="map-links">
+    <a href="https://www.openstreetmap.org/" id="link-osm" target="_blank" rel="noopener noreferrer" class="map-link" aria-disabled="true">Open in OpenStreetMap</a>
+    <a href="https://www.google.com/maps" id="link-gmaps" target="_blank" rel="noopener noreferrer" class="map-link" aria-disabled="true">Open in Google Maps</a>
+    <a href="https://www.google.com/maps" id="link-gsat" target="_blank" rel="noopener noreferrer" class="map-link" aria-disabled="true">Open in Google Satellite</a>
+  </div>
+</section>
+
+<p class="verdict" id="verdict"></p>
+
+<section class="panel">
+  <h2>Browser Information</h2>
+  <div class="row"><span class="k">user-agent</span><span class="v" id="b-ua">—</span></div>
+  <div class="row"><span class="k">platform</span><span class="v" id="b-platform">—</span></div>
+  <div class="row"><span class="k">screen res</span><span class="v" id="b-screen">—</span></div>
+  <div class="row"><span class="k">pixel ratio</span><span class="v" id="b-dpr">—</span></div>
+  <div class="row"><span class="k">cpu cores</span><span class="v" id="b-cpu">—</span></div>
+  <div class="row"><span class="k">language</span><span class="v" id="b-lang">—</span></div>
+  <div class="row"><span class="k">timezone</span><span class="v" id="b-tz">—</span></div>
+</section>
+
+<section class="panel">
+  <h2>Network activity from this page</h2>
+  <div id="netlog"></div>
+</section>
+
+<p><a href="/dashboard" class="btn-link">Open Security Dashboard &rarr;</a></p>
+</div>
+<script src="/app.js"></script>
+</body>
+</html>

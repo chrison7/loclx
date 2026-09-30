@@ -1,17 +1,57 @@
-# loclx
+# LOCLX — Live Location & Information eXtractor
 
-LOCLX is a local teaching tool: a Linux CLI that serves a single lab page on your own machine so you can see, side by side, what a plain web page can infer from an IP address versus what the browser will only reveal after you grant the Geolocation permission. It is meant to be run on the same computer you use to click through the demo. It is not a way to collect location from anyone else.
+```
+╔══════════════════════════════════════════════╗
+║                 LOCLX                        ║
+║      Live Location & Information eXtractor   ║
+║                 v2.0                         ║
+╚══════════════════════════════════════════════╝
+```
 
-## What this demonstrates
+[![Python Version](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20WSL-lightgrey.svg)]()
 
-A link by itself never sees GPS. When the lab page loads, it asks a public IP geolocation API where *this machine's public IP* appears to sit. That answer is an estimate: typically city or region scale, tied to the ISP and routing, shown to three decimal places.
+LOCLX (Live Location & Information eXtractor) v2.0 is an advanced, consent-based Linux security and OSINT laboratory tool. It demonstrates the technical boundary between approximate IP-derived network intelligence and precise, user-permissioned browser GPS coordinates.
 
-Precise coordinates are a different channel. They come from the browser Geolocation API (`getCurrentPosition` / `watchPosition`) and only after an explicit permission prompt. Until you click a button and accept, the GPS panel stays empty. After a fix, the page and the terminal show the haversine gap between the IP estimate and the GPS reading — the practical difference between “a link loaded” and “permission was granted.”
+Designed for security researchers, privacy advocates, educators, and penetration testing laboratories operating on Kali Linux, Parrot OS, Ubuntu, Debian, Termux, WSL, and macOS.
 
-## Install / run
+---
 
-Python 3.9+ from the operating system is enough. There is nothing to pip-install.
+## Key Features
 
+- **Consent-Based GPS Laboratory**: Implements `navigator.geolocation.getCurrentPosition()` and `navigator.geolocation.watchPosition()` requiring explicit user click interaction.
+- **Session Management System**: Non-predictable `LX-XXXXXX` session identifiers, automatic expiration timeouts, and full session lifecycle control (`start`, `list`, `show`, `stop`, `delete`).
+- **IP Intelligence Engine**: Pluggable provider architecture (`IPWhoIs`, `IPApi`) extracting ASN, ISP, country, region, city, and approximate coordinates.
+- **Haversine Distance Analysis**: Real-time discrepancy calculation between network IP estimates and browser GPS fixes (`delta_km`).
+- **Browser Metrics Inspection**: Captures standard client capabilities (User-Agent, Platform, Screen resolution, DPR, CPU cores, timezone, language).
+- **Interactive Security Dashboard**: Real-time dark UI dashboard featuring live position tracking, accuracy radius indicator, movement trail, and session history management.
+- **ANSI Terminal Interface & Dashboard**: High-fidelity TTY interface with colorized status indicators and real-time live update logs.
+- **Security & Privacy Safeguards**: Fixed local bind (`127.0.0.1`), rate limiting, request size limits, zero credential theft, and ephemeral session memory.
+
+---
+
+## Architecture
+
+```
+LOCLX Architecture
+──────────────────────────────────────────────────────────────────
+Terminal CLI (loclx) ──► Session Manager ──► HTTP API (127.0.0.1)
+                              │                     │
+                              ▼                     ▼
+                        Session Storage      Web Lab & Dashboard
+                       (JSON/CSV Export)     (Leaflet Map & GPS)
+```
+
+For detailed architectural specifications, see [docs/architecture.md](docs/architecture.md).
+
+---
+
+## Installation
+
+LOCLX relies strictly on the Python 3.9+ standard library. Zero external Python packages are required.
+
+### Method 1: Direct Execution (Linux / macOS / WSL)
 ```bash
 git clone https://github.com/chrison7/loclx.git
 cd loclx
@@ -19,37 +59,86 @@ chmod +x loclx
 ./loclx
 ```
 
-Optional flags:
-
+### Method 2: System-Wide Packaging
 ```bash
-./loclx --port 8765
-./loclx --no-browser
+# Install via pipx (recommended)
+pipx install .
+
+# Or install via python pip
+python -m pip install .
 ```
 
-The server listens on `http://127.0.0.1:<port>/`. If the preferred port is busy it tries the next two ports, then an OS-assigned port, and prints the URL it actually bound.
+---
 
-## Secure context
+## Usage & Commands
 
-The Geolocation API requires a [secure context](https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts). `http://127.0.0.1` (and `localhost`) count as secure, so this lab works without HTTPS when you open the printed loopback URL in a browser on the same machine.
+Run LOCLX to launch the interactive terminal interface:
 
-## What this is not
+```bash
+loclx
+```
 
-This is not remote tracking. There is no tunnel, no session, no share link, and no persistence. Coordinates and IP fields live in process memory and disappear when the process exits. Nothing is written to disk. The bind address is the module-level constant `127.0.0.1`; there is no flag, environment variable, or config value to change it.
+### Command Line Options
 
-## Verifying the claims
+| Flag | Description |
+| :--- | :--- |
+| `loclx` | Launch standard TTY menu interface |
+| `loclx --port 8765` | Specify custom HTTP server port |
+| `loclx --no-browser` | Launch server without automatically opening default browser |
+| `loclx --lab` | Launch educational self-contained demonstration mode |
+| `loclx --debug` | Enable verbose log output |
+| `loclx --version` | Display version information |
+| `loclx --help` | Display command line usage and epilog |
 
-Section 3 of the lab page is a live log of outbound requests from that page. You should see the IP lookups and a `POST` to `http://127.0.0.1:<port>/report` after a GPS fix — and you should not see coordinates sent anywhere else.
+---
 
-Read the source in `loclx`. The geolocation success path uses `fetch()` only to POST the fix to the loopback `/report` endpoint. The IP lookup calls are a separate path and do not include GPS coordinates.
+## GPS Permission Model
 
-## Map links
+The W3C Geolocation API enforces browser and operating system permission boundaries:
 
-The GPS panel has three optional links: OpenStreetMap, Google Maps, and Google Satellite. Clicking one opens your current fix in a new tab.
+1. **No Automatic Prompts**: LOCLX does not request location access upon page load.
+2. **User Initiation**: The user must explicitly press `[ Request Location Permission ]`.
+3. **Secure Context**: Modern browsers require HTTPS or `localhost` / `127.0.0.1` secure context.
 
-Nothing on this page fetches a map tile. The coordinates are only sent to the destination site when you click the link, because your browser is navigating there. Until you click, they never leave 127.0.0.1. If you would rather not share them with a third party, don't click the link — the inline world view on the page shows the same position without any outbound request.
+For details, read [docs/browser-permissions.md](docs/browser-permissions.md) and [docs/gps.md](docs/gps.md).
 
-## Further reading
+---
 
-- [Why IP geolocation is not a person](docs/ip-vs-gps.md) — prefix databases, mobile/VPN/CGNAT, and the `delta_m` gap.
-- [Secure context and geolocation](docs/https-requirement.md) — why `http://127.0.0.1` is enough and TLS is not required here.
-- [The geolocation permission prompt](docs/browser-permission-model.md) — Allow/Block, the Permissions API, and why the prompt cannot be skipped.
+## IP Geolocation vs. Exact GPS
+
+IP geolocation maps public IP routing prefixes to ISP hub locations or regional city centroids. It **never** represents exact physical user location.
+
+LOCLX explicitly labels all IP coordinates as **APPROXIMATE** and measures the discrepancy distance against exact GPS coordinates using the Haversine formula:
+
+$$d = 2R \cdot \arcsin\left(\sqrt{\sin^2\left(\frac{\Delta \phi}{2}\right) + \cos(\phi_1)\cos(\phi_2)\sin^2\left(\frac{\Delta \lambda}{2}\right)}\right)$$
+
+Read [docs/ip-geolocation.md](docs/ip-geolocation.md) for deeper analysis.
+
+---
+
+## Security & Safeguards Boundary
+
+LOCLX strictly enforces the following security controls:
+
+- **Loopback Only (`127.0.0.1`)**: Fixed local bind address. Cannot be exposed remotely.
+- **Zero Stealth Tracking**: No hidden background tracking, covert telemetry, or permission bypasses.
+- **No Persistence**: History buffers live strictly in session memory unless manually exported to JSON/CSV.
+- **Payload Validation**: Hard limits on request size (64KB) and token-bucket rate limiting.
+
+Read [SECURITY.md](SECURITY.md) and [docs/security.md](docs/security.md).
+
+---
+
+## Testing
+
+Run the full automated test suite (27 unit & guard tests):
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+---
+
+## License
+
+Distributed under the MIT License. See [LICENSE](LICENSE) for details.

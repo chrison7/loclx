@@ -15,7 +15,7 @@ from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Optional
 
-VERSION = "1.0.0"
+VERSION = "1.0.1"
 # Bind address is fixed. Not a flag, env var, or config value.
 BIND_ADDR = "127.0.0.1"
 DEFAULT_PORT = 8765

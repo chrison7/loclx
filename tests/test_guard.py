@@ -63,7 +63,7 @@ class TestGuard(unittest.TestCase):
 
     def test_version_constant(self):
         self.assertTrue(hasattr(self.loclx, "VERSION"))
-        self.assertEqual(self.loclx.VERSION, "1.0.0")
+        self.assertEqual(self.loclx.VERSION, "1.0.1")
 
     def test_bind_addr_fixed(self):
         self.assertTrue(hasattr(self.loclx, "BIND_ADDR"))
@@ -79,7 +79,7 @@ class TestGuard(unittest.TestCase):
             text=True,
         )
         self.assertEqual(res.returncode, 0)
-        self.assertIn("loclx 1.0.0", res.stdout)
+        self.assertIn(f"loclx {self.loclx.VERSION}", res.stdout)
 
     def test_help_epilog(self):
         res = subprocess.run(

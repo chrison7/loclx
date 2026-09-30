@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.0.1
+
+Documentation and security policy release.
+
+- Added `CONTRIBUTING.md` guidelines outlining single-machine teaching scope and non-negotiable localhost rules.
+- Added `SECURITY.md` defining vulnerability report boundaries and security policy.
+- Added architectural screenshot and asset references.
+
 ## v1.0.0
 
 First release.

@@ -3,15 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>LOCLX Security Dashboard</title>
+<title>LOCLX Security Dashboard v2.1.0</title>
 <link rel="stylesheet" href="/style.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 </head>
 <body>
 <div class="wrap">
-<div class="tag">LOCLX Security Dashboard</div>
-<div class="sub">Live Session &amp; Location Analytics</div>
+<div class="tag">LOCLX v2.1.0 — Security &amp; OSINT Dashboard</div>
+<div class="sub">Live Session Analytics &amp; Location Discrepancy Analysis</div>
 
 <section class="panel">
   <h2>Session Overview</h2>
@@ -21,6 +21,16 @@
   <div class="row"><span class="k">gps updates</span><span class="v" id="dash-updates">0</span></div>
   <div class="row"><span class="k">last fix</span><span class="v" id="dash-last-fix">—</span></div>
   <div class="row"><span class="k">ip vs gps diff</span><span class="v warn" id="dash-diff">—</span></div>
+</section>
+
+<section class="panel">
+  <h2>Location Comparison &amp; Interpretation</h2>
+  <div class="row"><span class="k">ip location (approximate)</span><span class="v" id="dash-ip-loc">—</span></div>
+  <div class="row"><span class="k">gps location (explicit permission)</span><span class="v" id="dash-gps-loc">—</span></div>
+  <div class="row"><span class="k">discrepancy distance</span><span class="v warn" id="dash-discrepancy">—</span></div>
+  <p class="dim" style="font-size: 11px; margin-top: 8px;">
+    <strong>Interpretation:</strong> Browser GPS provides exact device coordinates after explicit user permission grant. IP geolocation is an approximate network routing estimate and does not identify a physical individual.
+  </p>
 </section>
 
 <section class="panel">

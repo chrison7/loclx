@@ -1,4 +1,4 @@
-"""HTTP API Server and Static Web Asset Server for LOCLX."""
+"""HTTP API Server and Static Web Asset Server for LOCLX v2.1.0."""
 
 from __future__ import annotations
 
@@ -9,6 +9,8 @@ import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Optional
 
+from loclx import VERSION
+from loclx.diagnostics import DiagnosticRunner
 from loclx.ipinfo import IPManager
 from loclx.security import MAX_REQUEST_BODY, RateLimiter, sanitize_input
 from loclx.sessions import Session, SessionManager
@@ -46,6 +48,11 @@ class LabHandler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", f"http://{BIND_ADDR}")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "SAMEORIGIN")
+        self.send_header("Referrer-Policy", "strict-origin-when-cross-origin")
+        self.send_header("Cache-Control", "no-store, max-age=0")
+        self.send_header("Content-Security-Policy", "default-src 'self' 'unsafe-inline' https://*.tile.openstreetmap.org https://unpkg.com; img-src 'self' data: https://*.tile.openstreetmap.org; style-src 'self' 'unsafe-inline' https://unpkg.com; script-src 'self' 'unsafe-inline' https://unpkg.com;")
 
     def send_json(self, status_code: int, data: Any) -> None:
         body = json.dumps(data).encode("utf-8")
@@ -96,6 +103,34 @@ class LabHandler(BaseHTTPRequestHandler):
         elif url_path == "/api/session/active":
             session = get_active_session()
             self.send_json(200, session.to_dict())
+        elif url_path == "/api/session/active/history":
+            session = get_active_session()
+            self.send_json(200, session.storage.get_history())
+        elif url_path.startswith("/api/session/active/export"):
+            session = get_active_session()
+            fmt = self.path.split("format=")[-1] if "format=" in self.path else "json"
+            if fmt == "csv":
+                csv_data = session.storage.export_csv().encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "text/csv")
+                self.send_header("Content-Length", str(len(csv_data)))
+                self.send_cors_headers()
+                self.end_headers()
+                self.wfile.write(csv_data)
+            else:
+                self.send_json(200, session.storage.get_history())
+        elif url_path == "/api/diagnostics":
+            runner = DiagnosticRunner()
+            diag = [{"category": c, "item": i, "status": s, "details": d} for c, i, s, d in runner.run_all()]
+            self.send_json(200, diag)
+        elif url_path == "/api/config":
+            self.send_json(200, {
+                "version": VERSION,
+                "bind_addr": BIND_ADDR,
+                "port": self.server.server_address[1],
+                "session_ttl": _session_manager.default_timeout,
+                "ip_provider": "auto",
+            })
         elif url_path.startswith("/api/session/"):
             parts = url_path.strip("/").split("/")
             if len(parts) >= 3 and parts[2]:
@@ -113,6 +148,7 @@ class LabHandler(BaseHTTPRequestHandler):
                         self.send_response(200)
                         self.send_header("Content-Type", "text/csv")
                         self.send_header("Content-Length", str(len(csv_data)))
+                        self.send_cors_headers()
                         self.end_headers()
                         self.wfile.write(csv_data)
                     else:
@@ -167,6 +203,30 @@ class LabHandler(BaseHTTPRequestHandler):
                     self.send_json(200, {"status": "stopped"})
                 else:
                     self.send_json(400, {"error": "Invalid endpoint"})
+        else:
+            self.send_error(404, "Not Found")
+
+    def do_DELETE(self) -> None:
+        client_ip = self.client_address[0]
+        if not _rate_limiter.is_allowed(client_ip):
+            self.send_json(429, {"error": "Rate limit exceeded"})
+            return
+
+        url_path = self.path.split("?")[0]
+        if url_path == "/api/session/active":
+            session = get_active_session()
+            session.storage.clear_history()
+            self.send_json(200, {"status": "history cleared", "sessionId": session.sid})
+        elif url_path.startswith("/api/session/"):
+            parts = url_path.strip("/").split("/")
+            if len(parts) == 3 and parts[2]:
+                sid = parts[2]
+                if _session_manager.delete_session(sid):
+                    self.send_json(200, {"status": "deleted", "sessionId": sid})
+                else:
+                    self.send_json(404, {"error": "Session not found"})
+            else:
+                self.send_json(400, {"error": "Invalid endpoint"})
         else:
             self.send_error(404, "Not Found")
 

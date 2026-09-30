@@ -1,18 +1,18 @@
 # LOCLX — Live Location & Information eXtractor
 
 ```
-╔══════════════════════════════════════════════╗
-║                 LOCLX                        ║
-║      Live Location & Information eXtractor   ║
-║                 v2.0                         ║
-╚══════════════════════════════════════════════╝
+╔════════════════════════════════════════════════════════════╗
+║                         LOCLX                              ║
+║          Live Location & Information eXtractor             ║
+║                         v2.1.0                             ║
+╚════════════════════════════════════════════════════════════╝
 ```
 
 [![Python Version](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20WSL-lightgrey.svg)]()
+[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Parrot%20OS%20%7C%20Kali%20Linux%20%7C%20macOS%20%7C%20WSL-lightgrey.svg)]()
 
-LOCLX (Live Location & Information eXtractor) v2.0 is an advanced, consent-based Linux security and OSINT laboratory tool. It demonstrates the technical boundary between approximate IP-derived network intelligence and precise, user-permissioned browser GPS coordinates.
+LOCLX (Live Location & Information eXtractor) v2.1.0 is an advanced, consent-based Linux security and OSINT laboratory tool. It demonstrates the technical boundary between approximate IP-derived network intelligence and precise, user-permissioned browser GPS coordinates.
 
 Designed for security researchers, privacy advocates, educators, and penetration testing laboratories operating on Kali Linux, Parrot OS, Ubuntu, Debian, Termux, WSL, and macOS.
 
@@ -21,13 +21,50 @@ Designed for security researchers, privacy advocates, educators, and penetration
 ## Key Features
 
 - **Consent-Based GPS Laboratory**: Implements `navigator.geolocation.getCurrentPosition()` and `navigator.geolocation.watchPosition()` requiring explicit user click interaction.
-- **Session Management System**: Non-predictable `LX-XXXXXX` session identifiers, automatic expiration timeouts, and full session lifecycle control (`start`, `list`, `show`, `stop`, `delete`).
-- **IP Intelligence Engine**: Pluggable provider architecture (`IPWhoIs`, `IPApi`) extracting ASN, ISP, country, region, city, and approximate coordinates.
+- **Session Engine System**: Non-predictable `LX-XXXXXX` session tokens, 30-minute auto-expiration (`LOCLX_SESSION_TTL`), and full session lifecycle control (`start`, `list`, `info`, `stop`, `delete`).
+- **IP Intelligence Engine**: Pluggable provider architecture (`IPWhoIs`, `IPApi`) extracting ASN, ISP, country, region, city, postal code, timezone, and approximate coordinates.
 - **Haversine Distance Analysis**: Real-time discrepancy calculation between network IP estimates and browser GPS fixes (`delta_km`).
-- **Browser Metrics Inspection**: Captures standard client capabilities (User-Agent, Platform, Screen resolution, DPR, CPU cores, timezone, language).
-- **Interactive Security Dashboard**: Real-time dark UI dashboard featuring live position tracking, accuracy radius indicator, movement trail, and session history management.
-- **ANSI Terminal Interface & Dashboard**: High-fidelity TTY interface with colorized status indicators and real-time live update logs.
-- **Security & Privacy Safeguards**: Fixed local bind (`127.0.0.1`), rate limiting, request size limits, zero credential theft, and ephemeral session memory.
+- **Browser Metrics Inspection**: Captures standard client capabilities (User-Agent, Platform, Screen resolution, Viewport, DPR, CPU cores, timezone, language, color depth, touch support, online status, device type).
+- **Interactive Security Dashboard**: Real-time dark UI dashboard featuring live position tracking, accuracy radius indicator, movement trail, location discrepancy interpretation, and session history management.
+- **Terminal CLI & ANSI Dashboard**: High-fidelity TTY interface with grouped menu structure, terminal width detection, ASCII QR code rendering, and live update logs.
+- **Diagnostics & Config Utility**: Integrated `loclx diagnostics` environment runner and `loclx config` viewer.
+- **Security & Privacy Safeguards**: Fixed local bind (`127.0.0.1`), security HTTP headers (CSP, X-Content-Type-Options), rate limiting, request size limits, zero credential theft, and bounded ephemeral session memory.
+
+---
+
+## Interactive Menu & Terminal UI
+
+```
+╔════════════════════════════════════════════════════════════╗
+║                         LOCLX                              ║
+║          Live Location & Information eXtractor             ║
+║                         v2.1.0                             ║
+╚════════════════════════════════════════════════════════════╝
+
+  SESSION
+  ──────────────────────────────────────────────────────────
+  [1] Start New Session
+  [2] Active Sessions
+  [3] Session Information
+  [4] Stop Session
+
+  ANALYSIS
+  ──────────────────────────────────────────────────────────
+  [5] Live Dashboard
+  [6] GPS Information
+  [7] IP Intelligence
+  [8] Browser Information
+  [9] Location History
+
+  TOOLS
+  ──────────────────────────────────────────────────────────
+  [10] Export Session
+  [11] QR Code
+  [12] Diagnostics
+  [13] Configuration
+
+  [0] Exit
+```
 
 ---
 
@@ -70,25 +107,32 @@ python -m pip install .
 
 ---
 
-## Usage & Commands
+## Usage & Subcommands
 
-Run LOCLX to launch the interactive terminal interface:
+LOCLX supports both an interactive terminal menu and standard CLI subcommands:
 
 ```bash
+# Interactive TTY menu
 loclx
+
+# Subcommands
+loclx start                           # Start server and create session
+loclx session list                    # List active sessions
+loclx session info LX-XXXXXX          # Display session details
+loclx session stop LX-XXXXXX          # Stop specified session
+loclx dashboard                       # Open web dashboard
+loclx gps                             # Display GPS fix info
+loclx ip                              # Display network IP intelligence
+loclx browser                         # Display browser metrics
+loclx history                         # View location history log
+loclx export LX-XXXXXX --format csv   # Export history to CSV or JSON
+loclx diagnostics                     # Run environment health checks
+loclx config                          # Display effective configuration
+loclx qr                              # Render terminal ASCII QR code
+loclx --lab                           # Educational lab mode
+loclx --version                       # Display version information
+loclx --help                          # Display command help
 ```
-
-### Command Line Options
-
-| Flag | Description |
-| :--- | :--- |
-| `loclx` | Launch standard TTY menu interface |
-| `loclx --port 8765` | Specify custom HTTP server port |
-| `loclx --no-browser` | Launch server without automatically opening default browser |
-| `loclx --lab` | Launch educational self-contained demonstration mode |
-| `loclx --debug` | Enable verbose log output |
-| `loclx --version` | Display version information |
-| `loclx --help` | Display command line usage and epilog |
 
 ---
 
@@ -123,15 +167,29 @@ LOCLX strictly enforces the following security controls:
 - **Loopback Only (`127.0.0.1`)**: Fixed local bind address. Cannot be exposed remotely.
 - **Zero Stealth Tracking**: No hidden background tracking, covert telemetry, or permission bypasses.
 - **No Persistence**: History buffers live strictly in session memory unless manually exported to JSON/CSV.
-- **Payload Validation**: Hard limits on request size (64KB) and token-bucket rate limiting.
+- **Payload Validation**: Hard limits on request size (64KB) and token-bucket rate limiting (100 req/min).
 
 Read [SECURITY.md](SECURITY.md) and [docs/security.md](docs/security.md).
 
 ---
 
+## Documentation
+
+- [CLI Reference](docs/cli.md)
+- [Dashboard Guide](docs/dashboard.md)
+- [Configuration Reference](docs/configuration.md)
+- [Troubleshooting Guide](docs/troubleshooting.md)
+- [Architecture Overview](docs/architecture.md)
+- [GPS & Mathematics](docs/gps.md)
+- [IP Geolocation Intelligence](docs/ip-geolocation.md)
+- [Browser Permissions Model](docs/browser-permissions.md)
+- [Security Safeguards](docs/security.md)
+
+---
+
 ## Testing
 
-Run the full automated test suite (27 unit & guard tests):
+Run the full automated test suite:
 
 ```bash
 python -m unittest discover -s tests -v

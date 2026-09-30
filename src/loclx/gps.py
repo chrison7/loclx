@@ -1,9 +1,9 @@
-"""GPS coordinate processing, Haversine calculations, and formatting."""
+"""GPS coordinate processing, Haversine calculations, accuracy visualization, and formatting."""
 
 from __future__ import annotations
 
 import math
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Optional
 
@@ -14,6 +14,8 @@ class GPSFix:
     longitude: float
     accuracy: Optional[float] = None
     altitude: Optional[float] = None
+    heading: Optional[float] = None
+    speed: Optional[float] = None
     timestamp: Optional[str] = None
 
     def to_dict(self) -> dict[str, Any]:
@@ -22,6 +24,8 @@ class GPSFix:
             "lon": self.longitude,
             "accuracy": self.accuracy,
             "altitude": self.altitude,
+            "heading": self.heading,
+            "speed": self.speed,
             "timestamp": self.timestamp or datetime.now().strftime("%H:%M:%S"),
         }
 
@@ -65,6 +69,18 @@ def format_altitude(alt: Any) -> str:
     return f"{val:.1f} m"
 
 
+def render_accuracy_target(acc: Any) -> str:
+    """Render an ASCII target accuracy diagram."""
+    acc_str = format_accuracy(acc)
+    return (
+        f"  GPS ACCURACY TARGET\n"
+        f"        {acc_str}\n"
+        f"         ●\n"
+        f"       (   )\n"
+        f"      (     )"
+    )
+
+
 def gps_box_lines(gps_data: dict[str, Any], when: Optional[str] = None) -> list[str]:
     lat = gps_data.get("lat")
     lon = gps_data.get("lon")
@@ -75,6 +91,8 @@ def gps_box_lines(gps_data: dict[str, Any], when: Optional[str] = None) -> list[
         ("longitude", lon_s),
         ("accuracy", format_accuracy(gps_data.get("accuracy"))),
         ("altitude", format_altitude(gps_data.get("altitude"))),
+        ("heading", f"{gps_data.get('heading'):.1f}°" if is_valid_number(gps_data.get("heading")) else "n/a"),
+        ("speed", f"{gps_data.get('speed'):.1f} m/s" if is_valid_number(gps_data.get("speed")) else "n/a"),
         ("time", when or gps_data.get("timestamp") or "n/a"),
     ]
     inner = 41

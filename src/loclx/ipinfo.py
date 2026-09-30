@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import urllib.request
 from abc import ABC, abstractmethod
-from typing import Any, Optional, Type
+from typing import Any, Optional
 
 
 class IPProvider(ABC):
@@ -32,7 +32,7 @@ class IPWhoIsProvider(IPProvider):
         url = "https://ipwho.is/"
         req = urllib.request.Request(
             url,
-            headers={"User-Agent": "LOCLX-SecurityLab/2.0"},
+            headers={"User-Agent": "LOCLX-SecurityLab/2.1"},
         )
         try:
             with urllib.request.urlopen(req, timeout=timeout) as response:
@@ -42,6 +42,7 @@ class IPWhoIsProvider(IPProvider):
                 if not data or data.get("success") is False:
                     return None
                 conn = data.get("connection", {})
+                timezone = data.get("timezone", {})
                 lat = data.get("latitude")
                 lon = data.get("longitude")
                 return {
@@ -49,9 +50,12 @@ class IPWhoIsProvider(IPProvider):
                     "city": data.get("city"),
                     "region": data.get("region"),
                     "country": data.get("country"),
+                    "postal": data.get("postal") or "—",
+                    "timezone": timezone.get("id") or timezone.get("code") or "—",
                     "isp": conn.get("isp") or data.get("isp") or conn.get("org") or "—",
                     "org": conn.get("org") or data.get("org") or "—",
-                    "asn": conn.get("asn") or data.get("asn") or "—",
+                    "asn": str(conn.get("asn") or data.get("asn") or "—"),
+                    "hostname": conn.get("domain") or "—",
                     "lat": float(lat) if isinstance(lat, (int, float)) else None,
                     "lon": float(lon) if isinstance(lon, (int, float)) else None,
                     "provider": self.name(),
@@ -71,14 +75,14 @@ class IPApiProvider(IPProvider):
         url = "https://ipapi.co/json/"
         req = urllib.request.Request(
             url,
-            headers={"User-Agent": "LOCLX-SecurityLab/2.0"},
+            headers={"User-Agent": "LOCLX-SecurityLab/2.1"},
         )
         try:
             with urllib.request.urlopen(req, timeout=timeout) as response:
                 if response.status != 200:
                     return None
                 data = json.loads(response.read().decode("utf-8"))
-                if not data:
+                if not data or "error" in data:
                     return None
                 lat = data.get("latitude")
                 lon = data.get("longitude")
@@ -87,9 +91,12 @@ class IPApiProvider(IPProvider):
                     "city": data.get("city"),
                     "region": data.get("region"),
                     "country": data.get("country_name") or data.get("country"),
+                    "postal": data.get("postal") or "—",
+                    "timezone": data.get("timezone") or "—",
                     "isp": data.get("org") or data.get("isp") or "—",
                     "org": data.get("org") or "—",
-                    "asn": data.get("asn") or "—",
+                    "asn": str(data.get("asn") or "—"),
+                    "hostname": data.get("hostname") or "—",
                     "lat": float(lat) if isinstance(lat, (int, float)) else None,
                     "lon": float(lon) if isinstance(lon, (int, float)) else None,
                     "provider": self.name(),

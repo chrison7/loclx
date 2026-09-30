@@ -2,23 +2,35 @@
 
 from __future__ import annotations
 
+import os
 import secrets
 import time
 from typing import Any, Optional
 
 from loclx.browser import BrowserInfo
-from loclx.gps import GPSFix, haversine_m
+from loclx.gps import haversine_m
 from loclx.storage import SessionStorage
+
+DEFAULT_SESSION_TTL = 1800.0
+
+
+def get_default_ttl() -> float:
+    try:
+        val = float(os.environ.get("LOCLX_SESSION_TTL", DEFAULT_SESSION_TTL))
+        return val if val > 0 else DEFAULT_SESSION_TTL
+    except Exception:
+        return DEFAULT_SESSION_TTL
 
 
 class Session:
     """Represents a single LOCLX lab session."""
 
-    def __init__(self, sid: str, timeout_seconds: float = 1800.0) -> None:
+    def __init__(self, sid: str, timeout_seconds: Optional[float] = None) -> None:
         self.sid = sid
         self.created_at = time.time()
+        self.timeout_seconds = timeout_seconds if timeout_seconds is not None else get_default_ttl()
+        self.expires_at = self.created_at + self.timeout_seconds
         self.last_activity = self.created_at
-        self.timeout_seconds = timeout_seconds
         self.status = "ACTIVE"
         self.gps_updates = 0
         self.current_fix: Optional[dict[str, Any]] = None
@@ -27,12 +39,14 @@ class Session:
         self.storage = SessionStorage()
 
     def touch(self) -> None:
-        self.last_activity = time.time()
+        now = time.time()
+        self.last_activity = now
+        self.expires_at = now + self.timeout_seconds
 
     def is_expired(self) -> bool:
         if self.status == "EXPIRED":
             return True
-        if time.time() - self.last_activity > self.timeout_seconds:
+        if time.time() > self.expires_at or time.time() - self.last_activity > self.timeout_seconds:
             self.status = "EXPIRED"
             return True
         return False
@@ -47,6 +61,8 @@ class Session:
             "lon": float(gps_data["lon"]),
             "accuracy": float(gps_data["accuracy"]) if gps_data.get("accuracy") is not None else None,
             "altitude": float(gps_data["altitude"]) if gps_data.get("altitude") is not None else None,
+            "heading": float(gps_data["heading"]) if gps_data.get("heading") is not None else None,
+            "speed": float(gps_data["speed"]) if gps_data.get("speed") is not None else None,
             "timestamp": time.strftime("%H:%M:%S"),
         }
         self.storage.add_record(self.current_fix)
@@ -80,11 +96,18 @@ class Session:
             "id": self.sid,
             "status": self.status,
             "created": time.strftime("%H:%M:%S", time.localtime(self.created_at)),
+            "created_at": self.created_at,
+            "expires_at": self.expires_at,
             "lastActivity": time.strftime("%H:%M:%S", time.localtime(self.last_activity)),
+            "last_seen": self.last_activity,
             "gpsUpdates": self.gps_updates,
+            "update_count": self.gps_updates,
             "currentFix": self.current_fix,
+            "gps_fix": self.current_fix,
             "ipInfo": self.ip_info,
+            "ip_information": self.ip_info,
             "browserInfo": self.browser_info.to_dict() if self.browser_info else None,
+            "browser_information": self.browser_info.to_dict() if self.browser_info else None,
             "diffMeters": self.calculate_ip_gps_diff(),
             "uptimeSeconds": uptime,
         }
@@ -93,8 +116,8 @@ class Session:
 class SessionManager:
     """Manages active, expired, and stopped LOCLX sessions."""
 
-    def __init__(self, default_timeout: float = 1800.0) -> None:
-        self.default_timeout = default_timeout
+    def __init__(self, default_timeout: Optional[float] = None) -> None:
+        self.default_timeout = default_timeout if default_timeout is not None else get_default_ttl()
         self.sessions: dict[str, Session] = {}
 
     def create_session(self) -> Session:

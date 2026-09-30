@@ -1,5 +1,5 @@
 /**
- * LOCLX Security Dashboard JavaScript
+ * LOCLX Security Dashboard JavaScript v2.1.0
  */
 (function () {
   let leafletMap = null;
@@ -39,17 +39,9 @@
     }
     if (btnClearHistory) {
       btnClearHistory.onclick = function () {
-        fetch("/api/session/active")
-          .then((r) => r.json())
-          .then((data) => {
-            if (data && data.id) {
-              fetch("/api/session/" + data.id, { method: "DELETE" }).then(
-                () => {
-                  updateHistoryUI([]);
-                }
-              );
-            }
-          });
+        fetch("/api/session/active", { method: "DELETE" }).then(() => {
+          updateHistoryUI([]);
+        });
       };
     }
   }
@@ -65,23 +57,38 @@
         const elemUpdates = document.getElementById("dash-updates");
         const elemLastFix = document.getElementById("dash-last-fix");
         const elemDiff = document.getElementById("dash-diff");
+        const elemIpLoc = document.getElementById("dash-ip-loc");
+        const elemGpsLoc = document.getElementById("dash-gps-loc");
+        const elemDiscrepancy = document.getElementById("dash-discrepancy");
+
+        const fix = session.currentFix || session.gps_fix;
+        const ipInfo = session.ipInfo || session.ip_information;
+        const updates = session.gpsUpdates !== undefined ? session.gpsUpdates : (session.gps_updates || 0);
 
         if (elemSid) elemSid.textContent = session.id || "—";
         if (elemStatus) elemStatus.textContent = session.status || "—";
         if (elemUptime)
-          elemUptime.textContent = session.created
-            ? Math.floor((Date.now() - session.created * 1000) / 1000) + "s"
+          elemUptime.textContent = session.uptimeSeconds
+            ? Math.floor(session.uptimeSeconds) + "s"
             : "—";
-        if (elemUpdates) elemUpdates.textContent = session.gps_updates || "0";
+        if (elemUpdates) elemUpdates.textContent = updates;
 
-        if (session.current_fix) {
-          const fix = session.current_fix;
+        if (fix) {
           if (elemLastFix) {
             elemLastFix.textContent =
               fix.lat.toFixed(6) +
               ", " +
               fix.lon.toFixed(6) +
               " (±" +
+              Math.round(fix.accuracy || 0) +
+              "m)";
+          }
+          if (elemGpsLoc) {
+            elemGpsLoc.textContent =
+              fix.lat.toFixed(6) +
+              ", " +
+              fix.lon.toFixed(6) +
+              " (Accuracy: ±" +
               Math.round(fix.accuracy || 0) +
               "m)";
           }
@@ -110,20 +117,22 @@
           }
         }
 
-        if (session.ip_info && session.current_fix && elemDiff) {
-          if (
-            session.ip_info.latitude !== undefined &&
-            session.ip_info.longitude !== undefined
-          ) {
-            const dist = calculateHaversine(
-              session.ip_info.latitude,
-              session.ip_info.longitude,
-              session.current_fix.lat,
-              session.current_fix.lon
-            );
-            elemDiff.textContent =
-              dist.toFixed(2) +
-              " km (Difference between approximate IP & exact GPS)";
+        if (ipInfo) {
+          if (elemIpLoc) {
+            const place = [ipInfo.city, ipInfo.region, ipInfo.country].filter(Boolean).join(", ");
+            const coords = (ipInfo.lat && ipInfo.lon) ? ` (${ipInfo.lat.toFixed(4)}, ${ipInfo.lon.toFixed(4)})` : "";
+            elemIpLoc.textContent = (place || "Unknown") + coords + " [APPROXIMATE]";
+          }
+        }
+
+        if (ipInfo && fix) {
+          const ipLat = ipInfo.lat !== undefined ? ipInfo.lat : ipInfo.latitude;
+          const ipLon = ipInfo.lon !== undefined ? ipInfo.lon : ipInfo.longitude;
+          if (ipLat !== undefined && ipLon !== undefined) {
+            const dist = calculateHaversine(ipLat, ipLon, fix.lat, fix.lon);
+            const text = dist.toFixed(2) + " km difference";
+            if (elemDiff) elemDiff.textContent = text + " (Network IP vs GPS Fix)";
+            if (elemDiscrepancy) elemDiscrepancy.textContent = text;
           }
         }
       })
@@ -148,12 +157,11 @@
     }
     let html = "<ol style='margin:0; padding-left:20px;'>";
     history.forEach((item) => {
-      const ts = new Date((item.timestamp || Date.now() / 1000) * 1000)
-        .toTimeString()
-        .split(" ")[0];
-      html += `<li>[${ts}] ${item.lat.toFixed(6)}, ${item.lon.toFixed(
-        6
-      )} (±${Math.round(item.accuracy || 0)}m)</li>`;
+      const ts = item.timestamp || "—";
+      const lat = item.lat !== undefined ? item.lat.toFixed(6) : "n/a";
+      const lon = item.lon !== undefined ? item.lon.toFixed(6) : "n/a";
+      const acc = item.accuracy !== undefined ? Math.round(item.accuracy) : 0;
+      html += `<li>[${ts}] ${lat}, ${lon} (±${acc}m)</li>`;
     });
     html += "</ol>";
     listElem.innerHTML = html;

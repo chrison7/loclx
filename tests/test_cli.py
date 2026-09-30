@@ -61,5 +61,20 @@ class TestCLI(unittest.TestCase):
         self.assertIn("±7 m", report)
 
 
+    def test_missing_public_config_fails_startup(self):
+        from loclx.cli import main
+        # Ensure env variables are cleared for test
+        old_pub = os.environ.pop("LOCLX_PUBLIC_URL", None)
+        old_tun = os.environ.pop("LOCLX_TUNNEL_URL", None)
+        try:
+            res = main([])
+            self.assertEqual(res, 1)
+        finally:
+            if old_pub:
+                os.environ["LOCLX_PUBLIC_URL"] = old_pub
+            if old_tun:
+                os.environ["LOCLX_TUNNEL_URL"] = old_tun
+
+
 if __name__ == "__main__":
     unittest.main()

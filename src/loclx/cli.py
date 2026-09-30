@@ -326,6 +326,18 @@ def main(argv: Optional[list[str]] = None) -> int:
         run_config_cmd(c, args.port)
         return 0
 
+    if args.subcommand in (None, "start", "listen"):
+        if not validated_public_url and not args.tunnel:
+            print_banner(c)
+            emit(c.red("\n========================================================"))
+            emit(c.red("[!] Public capture endpoint not configured.\n"))
+            emit(c.red("Configure:\n"))
+            emit(c.red("  LOCLX_PUBLIC_URL=https://your-domain.example\n"))
+            emit(c.red("or use:\n"))
+            emit(c.red("  ./loclx --tunnel"))
+            emit(c.red("========================================================\n"))
+            return 1
+
     print_banner(c)
 
     try:
@@ -456,16 +468,12 @@ def main(argv: Optional[list[str]] = None) -> int:
 
     # Default capture workflow
     session = get_active_session()
+    pub_base = validated_public_url.rstrip("/") if validated_public_url else f"http://{BIND_ADDR}:{bound_port}"
+    capture_url = f"{pub_base}/session/{session.sid}"
 
     emit(c.green(f"\n[+] Listener started"))
-    emit(c.green(f"[+] Internal address:\n    {BIND_ADDR}:{bound_port}\n"))
-
-    if validated_public_url:
-        emit(c.bold(c.cyan(f"[+] Public Capture URL:\n    {validated_public_url}/\n")))
-    else:
-        capture_url = f"http://{BIND_ADDR}:{bound_port}/"
-        emit(c.bold(c.cyan(f"[+] Local Capture URL:\n    {capture_url}\n")))
-
+    emit(c.green(f"[+] Internal listener:\n    {BIND_ADDR}:{bound_port}\n"))
+    emit(c.bold(c.cyan(f"[+] Public Capture URL:\n    {capture_url}\n")))
     emit(c.amber("[*] Waiting for connection..."))
     emit(c.dim("[*] Press Ctrl+C to stop.\n"))
 

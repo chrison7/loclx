@@ -4,17 +4,18 @@
 ========================================================
                      LOCLX
               Location Intelligence
-                      v2.4.6
+                      v2.4.7
 ========================================================
 
 LOCLX - Authorized Security Testing Tool
 
 [+] Listener started
-[+] Internal address:
+
+[+] Internal listener:
     127.0.0.1:8765
 
 [+] Public Capture URL:
-    https://YOUR_DOMAIN/
+    https://example.com/session/LX-ABC123
 
 [*] Waiting for connection...
 [*] Press Ctrl+C to stop.
@@ -24,7 +25,7 @@ LOCLX - Authorized Security Testing Tool
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Parrot%20OS%20%7C%20Kali%20Linux%20%7C%20macOS%20%7C%20WSL-lightgrey.svg)]()
 
-LOCLX (Live Location & Information eXtractor) v2.4.6 is a professional Linux security and OSINT laboratory tool featuring a dual-interface architecture:
+LOCLX (Live Location & Information eXtractor) v2.4.7 is a professional Linux security and OSINT laboratory tool featuring a dual-interface architecture:
 1. **Operator Terminal**: Primary intelligence controller displaying listener status, real-time target connection events, device metadata, consent-based GPS fixes, map links, and live location streams.
 2. **Browser Participant Landing Page**: Modern, responsive, mobile-first chat/messaging interface ("Browser Information Demo") that presents information disclosures as message bubbles and requests location permission exclusively via standard browser Geolocation API prompts.
 
@@ -106,7 +107,15 @@ In a VM environment, browsers typically fall back to network-based positioning, 
 LOCLX binds strictly to local loopback (`127.0.0.1:8765`) by design. Public exposure must happen through an operator-controlled reverse proxy or secure tunnel.
 
 ```
-Internet ──> HTTPS (https://example.com) ──> Nginx ──> 127.0.0.1:8765 ──> LOCLX
+Internet
+   ↓
+HTTPS
+   ↓
+Nginx
+   ↓
+127.0.0.1:<actual-port>
+   ↓
+LOCLX
 ```
 
 ### 1. Nginx Reverse Proxy Configuration

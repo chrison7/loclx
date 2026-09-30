@@ -1,5 +1,16 @@
 # Changelog
 
+## v2.4.7
+
+Major release enforcing mandatory public capture endpoints (configured public Nginx URL or Cloudflare quick tunnel), complete removal of local capture fallback mode, session capture URL formatting (`/session/LX-XXXXXX`), and explicit startup failure when no public endpoint is supplied.
+
+### Fixed / Added
+- **Mandatory Public Capture Endpoint**: Default capture mode (`./loclx` or `loclx start`) requires `--public-url`, `LOCLX_PUBLIC_URL`, or `--tunnel`. If unconfigured, startup fails cleanly with exit code 1 and configuration instructions.
+- **Removal of Localhost Fallback**: Removed `[+] Local Capture URL:` output in capture mode.
+- **Session-Based Public Capture URL**: Generated public capture URL includes the active session route (e.g., `https://example.com/session/LX-ABC123` or `https://XXXX.trycloudflare.com/session/LX-ABC123`).
+- **Dynamic Port Forwarding**: Tunnel and reverse proxy forward to actual bound port (`127.0.0.1:<actual-port>`).
+- **Nginx Architecture Updates**: Updated `README.md` diagram and documentation reflecting multi-tier Nginx proxying.
+
 ## v2.4.6
 
 Release enforcing exact browser GPS preservation, LOCATION DIAGNOSTICS output formatting, best-fix map links, coarse fix notices (>10 km), public Nginx capture URL display workflow, and Parrot OS VM hardware testing notes.

@@ -1,3 +1,5 @@
+import importlib
+import io
 import os
 import sys
 import unittest
@@ -8,10 +10,14 @@ from loclx.cli import parse_args  # noqa: E402
 
 
 class TestCLI(unittest.TestCase):
+    def test_no_webbrowser_import_in_cli(self):
+        """Regression test verifying cli.py does not import webbrowser."""
+        cli_mod = importlib.import_module("loclx.cli")
+        self.assertFalse(hasattr(cli_mod, "webbrowser"), "cli.py must not import webbrowser")
+
     def test_parse_args_defaults(self):
         args, rem = parse_args([])
         self.assertEqual(args.port, 8765)
-        self.assertFalse(args.no_browser)
         self.assertFalse(args.debug)
         self.assertFalse(args.lab)
         self.assertIsNone(args.subcommand)
@@ -37,6 +43,12 @@ class TestCLI(unittest.TestCase):
 
         args, rem = parse_args(["qr"])
         self.assertEqual(args.subcommand, "qr")
+
+        args, rem = parse_args(["target"])
+        self.assertEqual(args.subcommand, "target")
+
+        args, rem = parse_args(["map"])
+        self.assertEqual(args.subcommand, "map")
 
 
 if __name__ == "__main__":

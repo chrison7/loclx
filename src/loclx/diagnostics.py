@@ -1,4 +1,4 @@
-"""System and Environment Diagnostics for LOCLX v2.1.0."""
+"""System and Environment Diagnostics for LOCLX v2.1.1."""
 
 from __future__ import annotations
 
@@ -6,8 +6,7 @@ import os
 import socket
 import sys
 import urllib.request
-import webbrowser
-from typing import Any, List, Tuple
+from typing import List, Tuple
 
 from loclx import VERSION
 
@@ -99,8 +98,8 @@ class DiagnosticRunner:
         except Exception as e:
             results.append(("Services", "IP Geolocation API", "WARN", f"Provider unreachable: {e} (fallback enabled)"))
 
-        # 8. Browser Launcher
-        results.append(("System", "Browser Controller", "OK", f"Default browser handler: {webbrowser.get().__class__.__name__}"))
+        # 8. Browser Auto-Launch Policy
+        results.append(("System", "Browser Auto-Launch", "OK", "Permanently disabled (terminal-first mode)"))
 
         # 9. Security & Safeguards Configuration
         results.append(("Security", "Security Policy", "OK", "Loopback bound, Rate limits (100/min), Payload cap (64KB)"))

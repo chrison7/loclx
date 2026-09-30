@@ -17,6 +17,8 @@ Precise coordinates are a different channel. They come from the browser Geolocat
 Python 3.9+ from the operating system is enough. There is nothing to pip-install.
 
 ```bash
+git clone https://github.com/chrison7/loclx.git
+cd loclx
 chmod +x loclx
 ./loclx
 ```

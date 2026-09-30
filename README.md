@@ -1,5 +1,9 @@
 # loclx
 
+![loclx lab page and terminal readout](docs/screenshot.png)
+
+*Left: the lab page after granting location. Right: the terminal readout showing the distance between the IP estimate and the actual GPS fix.*
+
 LOCLX is a local teaching tool: a Linux CLI that serves a single lab page on your own machine so you can see, side by side, what a plain web page can infer from an IP address versus what the browser will only reveal after you grant the Geolocation permission. It is meant to be run on the same computer you use to click through the demo. It is not a way to collect location from anyone else.
 
 ## What this demonstrates

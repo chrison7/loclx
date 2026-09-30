@@ -392,6 +392,7 @@ HTML_PAGE = """<!DOCTYPE html>
   <div class="row"><span class="k">latitude</span><span class="v" id="gps-lat">—</span></div>
   <div class="row"><span class="k">longitude</span><span class="v" id="gps-lon">—</span></div>
   <div class="row"><span class="k">accuracy</span><span class="v" id="gps-acc">—</span></div>
+  <div class="row"><span class="k">accuracy viz</span><span class="v" id="gps-acc-viz">—</span></div>
   <div class="row"><span class="k">altitude</span><span class="v" id="gps-alt">—</span></div>
   <div class="row"><span class="k">updated</span><span class="v" id="gps-at">—</span></div>
   <div class="btns">
@@ -452,6 +453,70 @@ HTML_PAGE = """<!DOCTYPE html>
     if (m <= 20) return "ok";
     if (m <= 150) return "warn";
     return "bad";
+  }
+
+  function updateAccuracySvg(acc) {
+    const container = document.getElementById("gps-acc-viz");
+    if (!container) return;
+    if (typeof acc !== "number" || isNaN(acc) || acc < 0) {
+      container.textContent = "—";
+      return;
+    }
+    const svgNS = "http://www.w3.org/2000/svg";
+    container.innerHTML = "";
+    const svg = document.createElementNS(svgNS, "svg");
+    svg.setAttribute("width", "200");
+    svg.setAttribute("height", "200");
+    svg.setAttribute("viewBox", "0 0 200 200");
+    svg.style.display = "block";
+    svg.style.background = "#080c12";
+    svg.style.border = "1px solid var(--border)";
+    svg.style.borderRadius = "4px";
+    svg.style.marginTop = "4px";
+
+    const cx = 100;
+    const cy = 100;
+    const maxR = 85;
+    const clampedAcc = Math.min(acc, 500);
+    const r = Math.max(4, (clampedAcc / 500) * maxR);
+
+    const refCircle = document.createElementNS(svgNS, "circle");
+    refCircle.setAttribute("cx", cx);
+    refCircle.setAttribute("cy", cy);
+    refCircle.setAttribute("r", maxR);
+    refCircle.setAttribute("fill", "none");
+    refCircle.setAttribute("stroke", "#1e2b3a");
+    refCircle.setAttribute("stroke-dasharray", "3 3");
+    refCircle.setAttribute("stroke-width", "1");
+    svg.appendChild(refCircle);
+
+    const circle = document.createElementNS(svgNS, "circle");
+    circle.setAttribute("cx", cx);
+    circle.setAttribute("cy", cy);
+    circle.setAttribute("r", r);
+    circle.setAttribute("fill", "rgba(79, 214, 255, 0.15)");
+    circle.setAttribute("stroke", "#4fd6ff");
+    circle.setAttribute("stroke-width", "2");
+    svg.appendChild(circle);
+
+    const centerDot = document.createElementNS(svgNS, "circle");
+    centerDot.setAttribute("cx", cx);
+    centerDot.setAttribute("cy", cy);
+    centerDot.setAttribute("r", "3");
+    centerDot.setAttribute("fill", "#00ff9c");
+    svg.appendChild(centerDot);
+
+    const label = document.createElementNS(svgNS, "text");
+    label.setAttribute("x", cx);
+    label.setAttribute("y", "190");
+    label.setAttribute("text-anchor", "middle");
+    label.setAttribute("fill", "#4fd6ff");
+    label.setAttribute("font-family", "monospace");
+    label.setAttribute("font-size", "12");
+    label.textContent = "±" + Math.round(acc) + " m";
+    svg.appendChild(label);
+
+    container.appendChild(svg);
   }
 
   function showVerdict() {
@@ -541,8 +606,10 @@ HTML_PAGE = """<!DOCTYPE html>
     setText("gps-lon", lon.toFixed(6));
     if (typeof acc === "number") {
       setText("gps-acc", "±" + Math.round(acc) + " m", accClass(acc));
+      updateAccuracySvg(acc);
     } else {
       setText("gps-acc", "n/a");
+      updateAccuracySvg(null);
     }
     setText("gps-alt", typeof alt === "number" ? Math.round(alt) + " m" : "n/a");
     setText("gps-at", new Date().toLocaleString());

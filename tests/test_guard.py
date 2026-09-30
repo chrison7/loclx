@@ -109,6 +109,8 @@ class TestGuard(unittest.TestCase):
         html = self.loclx.HTML_PAGE
         self.assertIn("worldMarker", html)
         self.assertIn("updateWorldView", html)
+        self.assertNotIn("<iframe", html)
+
         forbidden_map_assets = [
             "tile.openstreetmap",
             "leaflet",
@@ -116,9 +118,19 @@ class TestGuard(unittest.TestCase):
             "googleapis.com/maps",
             '<img src="http',
             "cdn.",
+            "<embed",
         ]
         for asset in forbidden_map_assets:
             self.assertNotIn(asset, html)
+
+        import re
+        hrefs = re.findall(r'href=["\'](.*?)["\']', html)
+        srcs = re.findall(r'src=["\'](.*?)["\']', html)
+
+        hosts = ["openstreetmap.org", "google.com/maps"]
+        for host in hosts:
+            self.assertTrue(any(host in href for href in hrefs), f"{host} should appear in an href attribute")
+            self.assertFalse(any(host in src for src in srcs), f"{host} must not appear in a src attribute")
 
     def test_no_forbidden_strings_in_tracked_files(self):
         tracked_files = get_tracked_files()

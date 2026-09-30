@@ -345,6 +345,25 @@ HTML_PAGE = """<!DOCTYPE html>
     border-color: var(--border);
     cursor: not-allowed;
   }
+  .map-links { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 4px; }
+  .map-link {
+    display: inline-block;
+    color: var(--dim);
+    border: 1px solid var(--border);
+    font-family: inherit;
+    font-size: 11px;
+    padding: 6px 10px;
+    text-decoration: none;
+    border-radius: 3px;
+    opacity: 0.4;
+    pointer-events: none;
+  }
+  .map-link:hover { color: var(--cyan); border-color: var(--cyan); }
+  .map-link.active {
+    opacity: 1;
+    pointer-events: auto;
+    border-color: var(--dim);
+  }
   .verdict {
     margin: 0 0 16px;
     padding: 12px 14px;
@@ -422,6 +441,11 @@ HTML_PAGE = """<!DOCTYPE html>
     <button type="button" id="btn-once">Request GPS — one shot</button>
     <button type="button" id="btn-watch">Start live watch</button>
     <button type="button" id="btn-stop" disabled>Stop</button>
+  </div>
+  <div class="map-links">
+    <a href="https://www.openstreetmap.org/" id="link-osm" target="_blank" rel="noopener noreferrer" class="map-link" aria-disabled="true">Open in OpenStreetMap</a>
+    <a href="https://www.google.com/maps" id="link-gmaps" target="_blank" rel="noopener noreferrer" class="map-link" aria-disabled="true">Open in Google Maps</a>
+    <a href="https://www.google.com/maps" id="link-gsat" target="_blank" rel="noopener noreferrer" class="map-link" aria-disabled="true">Open in Google Satellite</a>
   </div>
 </section>
 
@@ -560,6 +584,36 @@ HTML_PAGE = """<!DOCTYPE html>
     }
   }
 
+  function enableMapLink(el, host) {
+    el.removeAttribute("aria-disabled");
+    el.classList.add("active");
+    el.onclick = function () {
+      netlog("→ leaving page: " + host + " (coordinates sent to that site by your browser)");
+    };
+  }
+
+  function updateMapLinks(lat, lon) {
+    const latS = lat.toFixed(6);
+    const lonS = lon.toFixed(6);
+
+    const osm = document.getElementById("link-osm");
+    const gmaps = document.getElementById("link-gmaps");
+    const gsat = document.getElementById("link-gsat");
+
+    if (osm) {
+      osm.href = "https://www.openstreetmap.org/?mlat=" + latS + "&mlon=" + lonS + "#map=15/" + latS + "/" + lonS;
+      enableMapLink(osm, "www.openstreetmap.org");
+    }
+    if (gmaps) {
+      gmaps.href = "https://www.google.com/maps?q=" + latS + "," + lonS;
+      enableMapLink(gmaps, "www.google.com");
+    }
+    if (gsat) {
+      gsat.href = "https://www.google.com/maps/@" + latS + "," + lonS + ",15z/data=!3m1!1e3";
+      enableMapLink(gsat, "www.google.com");
+    }
+  }
+
   function showVerdict() {
     if (!ipInfo || lastGps == null) return;
     if (typeof ipInfo.lat !== "number" || typeof ipInfo.lon !== "number") return;
@@ -655,6 +709,7 @@ HTML_PAGE = """<!DOCTYPE html>
       updateAccuracySvg(null);
     }
     updateWorldView(pos.coords.latitude, pos.coords.longitude);
+    updateMapLinks(pos.coords.latitude, pos.coords.longitude);
     setText("gps-alt", typeof alt === "number" ? Math.round(alt) + " m" : "n/a");
     setText("gps-at", new Date().toLocaleString());
     showVerdict();

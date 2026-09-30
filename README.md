@@ -42,6 +42,12 @@ Section 3 of the lab page is a live log of outbound requests from that page. You
 
 Read the source in `loclx`. The geolocation success path uses `fetch()` only to POST the fix to the loopback `/report` endpoint. The IP lookup calls are a separate path and do not include GPS coordinates.
 
+## Map links
+
+The GPS panel has three optional links: OpenStreetMap, Google Maps, and Google Satellite. Clicking one opens your current fix in a new tab.
+
+Nothing on this page fetches a map tile. The coordinates are only sent to the destination site when you click the link, because your browser is navigating there. Until you click, they never leave 127.0.0.1. If you would rather not share them with a third party, don't click the link — the inline world view on the page shows the same position without any outbound request.
+
 ## Further reading
 
 - [Why IP geolocation is not a person](docs/ip-vs-gps.md) — prefix databases, mobile/VPN/CGNAT, and the `delta_m` gap.

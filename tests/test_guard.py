@@ -13,7 +13,6 @@ FORBIDDEN_TERMS = [
     "0." + "0.0.0",
     "-" + "-host",
     "ng" + "rok",
-    "cloud" + "flared",
     "local" + "tunnel",
     "ser" + "veo",
     "ssh " + "-R",

@@ -149,9 +149,15 @@ export LOCLX_PUBLIC_URL=https://example.com
 To make the Nginx reverse proxy publicly reachable over the Internet, one of the following network configurations is required:
 - **Public IP + DNS**: A public IP address with DNS records pointing to your domain and port 443 forwarded in your router/firewall.
 - **Public VPS Proxy**: A public Cloud/VPS server running Nginx with a secure tunnel back to your local LOCLX service.
-- **Authorized HTTPS Tunnel**: An authorized encrypted HTTPS tunnel client connecting local `127.0.0.1:8765` to a remote HTTPS domain.
-
-> **Note on Geolocation & HTTPS**: Modern web browsers mandate a **Secure Context (`https://`)** for the Geolocation API over remote connections. Plain HTTP connections will be denied by browsers.
+### 4. Cloudflare Quick Tunnel Mode
+```bash
+./loclx --tunnel
+```
+When `./loclx --tunnel` is executed:
+1. Verifies `cloudflared` is installed locally.
+2. Binds LOCLX internally to `127.0.0.1:8765`.
+3. Starts an authorized Cloudflare quick tunnel pointing to `http://127.0.0.1:8765`.
+4. Parses and displays the generated HTTPS capture URL (e.g. `https://xxxx.trycloudflare.com/`).
 
 
 

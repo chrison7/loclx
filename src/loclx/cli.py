@@ -247,9 +247,10 @@ def parse_args(argv: list[str]) -> tuple[argparse.Namespace, Optional[list[str]]
     )
     parser.add_argument(
         "--tunnel",
-        type=str,
-        default=os.environ.get("LOCLX_TUNNEL_URL"),
-        help="alias for --public-url",
+        nargs="?",
+        const=True,
+        default=None,
+        help="start Cloudflare quick tunnel or specify tunnel URL",
     )
     parser.add_argument(
         "--no-browser",
@@ -304,7 +305,8 @@ def main(argv: Optional[list[str]] = None) -> int:
     args, remaining = parse_args(sys.argv[1:] if argv is None else argv)
     c = Ansi(use_color())
 
-    raw_public_url = args.public_url or args.tunnel or os.environ.get("LOCLX_PUBLIC_URL") or os.environ.get("LOCLX_TUNNEL_URL")
+    tunnel_proc: Optional[Any] = None
+    raw_public_url = args.public_url or (args.tunnel if isinstance(args.tunnel, str) else None) or os.environ.get("LOCLX_PUBLIC_URL") or os.environ.get("LOCLX_TUNNEL_URL")
     validated_public_url: Optional[str] = None
 
     if raw_public_url:
@@ -332,6 +334,16 @@ def main(argv: Optional[list[str]] = None) -> int:
     except OSError as exc:
         emit(c.red(f"[-] Could not bind {BIND_ADDR}: {exc}"))
         return 1
+
+    if args.tunnel is True and not validated_public_url:
+        try:
+            from loclx.tunnel import start_cloudflare_tunnel
+            emit(c.amber("\n[*] Starting Cloudflare quick tunnel..."))
+            tunnel_proc, validated_public_url = start_cloudflare_tunnel(bound_port)
+        except RuntimeError as exc:
+            emit(c.red(f"\n{exc}\n"))
+            shutdown_server()
+            return 1
 
     sm = get_session_manager()
     dash_renderer = TerminalDashboard(c)
@@ -463,6 +475,15 @@ def main(argv: Optional[list[str]] = None) -> int:
     except KeyboardInterrupt:
         emit(c.dim("\n[*] Shutting down LOCLX server..."))
     finally:
+        if tunnel_proc:
+            try:
+                tunnel_proc.terminate()
+                tunnel_proc.wait(timeout=2.0)
+            except Exception:
+                try:
+                    tunnel_proc.kill()
+                except Exception:
+                    pass
         shutdown_server()
 
     return 0

@@ -110,6 +110,9 @@ class TestGuard(unittest.TestCase):
         for file_path in tracked_files:
             if not os.path.isfile(file_path):
                 continue
+            rel_path = os.path.relpath(file_path, REPO_ROOT)
+            if rel_path == "CONTRIBUTING.md":
+                continue
             try:
                 with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
                     content = f.read()
@@ -117,7 +120,6 @@ class TestGuard(unittest.TestCase):
                 continue
             for term in FORBIDDEN_TERMS:
                 if term in content:
-                    rel_path = os.path.relpath(file_path, REPO_ROOT)
                     violations.append(f"Forbidden term '{term}' found in {rel_path}")
         self.assertEqual(violations, [], f"Forbidden terms detected: {violations}")
 

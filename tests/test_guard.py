@@ -64,7 +64,8 @@ class TestGuard(unittest.TestCase):
 
     def test_version_constant(self):
         self.assertTrue(hasattr(self.loclx, "VERSION"))
-        self.assertEqual(self.loclx.VERSION, "2.4.3")
+        self.assertEqual(self.loclx.VERSION, "2.4.4")
+
 
 
     def test_bind_addr_fixed(self):
@@ -102,10 +103,11 @@ class TestGuard(unittest.TestCase):
     def test_participant_landing_page(self):
         self.assertTrue(hasattr(self.loclx, "HTML_PAGE"))
         html = self.loclx.HTML_PAGE
-        self.assertIn("Browser Information Demo", html)
-        self.assertIn("Start Demo", html)
+        self.assertIn("Browser Information", html)
+        self.assertIn("Continue", html)
         self.assertIn("getCurrentPosition", html)
         self.assertNotIn("<iframe", html)
+
 
         forbidden_assets = [
             "tile.openstreetmap",

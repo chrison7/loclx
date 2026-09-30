@@ -4,7 +4,7 @@
 ========================================================
                      LOCLX
               Location Intelligence
-                      v2.4.3
+                      v2.4.4
 ========================================================
 
 LOCLX - Authorized Security Testing Tool
@@ -24,10 +24,9 @@ LOCLX - Authorized Security Testing Tool
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Parrot%20OS%20%7C%20Kali%20Linux%20%7C%20macOS%20%7C%20WSL-lightgrey.svg)]()
 
-LOCLX (Live Location & Information eXtractor) v2.4.3 is a professional Linux security and OSINT laboratory tool featuring a dual-interface architecture:
+LOCLX (Live Location & Information eXtractor) v2.4.4 is a professional Linux security and OSINT laboratory tool featuring a dual-interface architecture:
 1. **Operator Terminal**: Primary intelligence controller displaying listener status, real-time target connection events, device metadata, consent-based GPS fixes, map links, and live location streams.
-2. **Browser Participant Landing Page**: Clean, modern, professional neutral web page ("Browser Information Demo") that clearly explains the demo purpose and requests location permission exclusively via standard browser Geolocation API prompts.
-
+2. **Browser Participant Landing Page**: Modern, responsive, mobile-first chat/messaging interface ("Browser Information Demo") that presents information disclosures as message bubbles and requests location permission exclusively via standard browser Geolocation API prompts.
 
 Designed for security researchers, privacy advocates, educators, and penetration testing laboratories operating on Kali Linux, Parrot OS, Ubuntu, Debian, Termux, WSL, and macOS.
 
@@ -36,13 +35,14 @@ Designed for security researchers, privacy advocates, educators, and penetration
 ## Architecture & Workflow
 
 ```
-OPERATOR TERMINAL                  PARTICIPANT BROWSER PAGE
+OPERATOR TERMINAL                  PARTICIPANT CHAT WEBPAGE
 -----------------                  ------------------------
+
 ./loclx
    │
-Listener Started                   Browser Information Demo
+Listener Started                   Browser Information Chat
    │                                           │
-Waiting for connection                     [ Start Demo ]
+Waiting for connection                     [ Continue ]
    │                                           │
 Target Connected ─────────────── Native Browser Permission Prompt
    │                                           │
@@ -52,6 +52,7 @@ Location Received ◄───────────────────�
    │
 Map & Earth Links
 ```
+
 
 ---
 

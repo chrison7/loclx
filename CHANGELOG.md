@@ -1,6 +1,19 @@
 # Changelog
 
+
+## v2.4.4
+
+Major UI upgrade replacing the centered participant card with a mobile-first, responsive chat/messaging interface.
+
+### Added / Changed
+- **Mobile-First Chat Interface**: Redesigned participant landing page into a clean, modern messaging interface (`Browser Information`) complete with header avatar, online indicator, and message bubbles.
+- **Sequential Information Disclosures**: Formatted disclosures as clean message bubbles detailing demo scope and optional consent-based location access.
+- **Action-Driven Flow**: Added prominent `[ Continue ]` button that transitions to checking browser capabilities before requesting location permission.
+- **Dynamic Outcome Bubbles**: Renders result bubbles (`"Location information was received."`, `"Location access was not granted."`, or `"Location information is currently unavailable."`).
+- **Mobile Responsive Design**: 100% viewport height, responsive breakpoints (360px–1366px), safe-area padding for mobile browsers, and centered desktop card wrapper.
+
 ## v2.4.3
+
 
 Major release adding public Nginx reverse proxy support, public capture URL configuration, proxy header handling, public/admin route separation, improved GPS accuracy acquisition & best-fix strategy, and clean participant UI.
 

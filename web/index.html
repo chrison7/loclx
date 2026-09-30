@@ -2,36 +2,69 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Browser Information Demo</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Browser Information</title>
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-<main class="container">
-  <div class="card">
-    <div class="icon-wrapper">
-      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="10"></circle>
-        <line x1="12" y1="16" x2="12" y2="12"></line>
-        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+<div class="chat-app">
+  <!-- Top App Header -->
+  <header class="chat-header">
+    <div class="header-user">
+      <div class="avatar-container">
+        <div class="avatar-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="16" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+          </svg>
+        </div>
+        <span class="status-dot"></span>
+      </div>
+      <div class="header-info">
+        <h1 class="header-title">Browser Information</h1>
+        <span class="header-status">Online</span>
+      </div>
+    </div>
+    <button type="button" class="header-menu-btn" aria-label="Menu">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+        <circle cx="12" cy="5" r="2"></circle>
+        <circle cx="12" cy="12" r="2"></circle>
+        <circle cx="12" cy="19" r="2"></circle>
       </svg>
+    </button>
+  </header>
+
+  <!-- Main Chat Conversation Area -->
+  <main class="chat-body" id="chat-body">
+    <div class="chat-thread" id="chat-thread">
+      <div class="message-group incoming">
+        <div class="message-bubble">
+          <p>Welcome to the Browser Information Demo.</p>
+        </div>
+      </div>
+
+      <div class="message-group incoming">
+        <div class="message-bubble">
+          <p>This page demonstrates information that modern websites can access or request from your browser.</p>
+        </div>
+      </div>
+
+      <div class="message-group incoming">
+        <div class="message-bubble">
+          <p>Location access is optional. If you continue, your browser may show a location permission request. Your location is shared only if you approve that request.</p>
+        </div>
+      </div>
     </div>
-    <h1>Browser Information Demo</h1>
-    <p class="desc">
-      See what information modern websites can access or request from your browser.
-    </p>
-    <p class="disclosure">
-      This demonstration may request access to your device location. Location information is shared only if you approve the browser's permission request.
-    </p>
-    <p class="note">
-      You can deny the request at any time.
-    </p>
-    <div class="actions">
-      <button type="button" id="btn-start-demo" class="btn-primary">Start Demo</button>
-    </div>
-    <div id="status-message" class="status-msg" aria-live="polite"></div>
-  </div>
-</main>
+  </main>
+
+  <!-- Bottom Action Footer -->
+  <footer class="chat-footer" id="chat-footer">
+    <button type="button" id="btn-start-demo" class="btn-continue">
+      Continue
+    </button>
+  </footer>
+</div>
 <script src="/app.js"></script>
 </body>
 </html>

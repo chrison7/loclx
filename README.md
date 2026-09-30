@@ -4,7 +4,7 @@
 ╔════════════════════════════════════════════════════════════╗
 ║                         LOCLX                              ║
 ║     LIVE LOCATION & INFORMATION eXTRACTOR                  ║
-║                         v2.2.0                             ║
+║                         v2.3.0                             ║
 ╚════════════════════════════════════════════════════════════╝
 ```
 
@@ -12,7 +12,7 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Parrot%20OS%20%7C%20Kali%20Linux%20%7C%20macOS%20%7C%20WSL-lightgrey.svg)]()
 
-LOCLX (Live Location & Information eXtractor) v2.2.0 is a terminal-first, session-centric Linux security and OSINT information-gathering tool. It demonstrates the technical boundary between approximate IP-derived network intelligence and precise, user-permissioned browser GPS coordinates.
+LOCLX (Live Location & Information eXtractor) v2.3.0 is a terminal-first, session-centric Linux security and OSINT information-gathering tool. It demonstrates the technical boundary between approximate IP-derived network intelligence and precise, user-permissioned browser GPS coordinates.
 
 Designed for security researchers, privacy advocates, educators, and penetration testing laboratories operating on Kali Linux, Parrot OS, Ubuntu, Debian, Termux, WSL, and macOS.
 
@@ -57,7 +57,7 @@ LOCLX TERMINAL (Controller & Listener)
 ╔════════════════════════════════════════════════════════════╗
 ║                         LOCLX                              ║
 ║     LIVE LOCATION & INFORMATION eXTRACTOR                  ║
-║                         v2.2.0                             ║
+║                         v2.3.0                             ║
 ╚════════════════════════════════════════════════════════════╝
 
 [+] LISTENER

@@ -1,4 +1,4 @@
-"""Terminal-first session-centric CLI for LOCLX v2.2.0."""
+"""Terminal-first session-centric CLI for LOCLX v2.3.0."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ def print_banner(c: Ansi) -> None:
 ╔══════════════════════════════════════════════════════════╗
 ║                         LOCLX                            ║
 ║     LIVE LOCATION & INFORMATION eXTRACTOR                ║
-║                         v2.2.0                           ║
+║                         v2.3.0                           ║
 ╚══════════════════════════════════════════════════════════╝"""
     emit(c.green(banner))
 
@@ -218,6 +218,24 @@ def print_map_visualization(session, server_url: str, c: Ansi) -> None:
     emit(c.dim("[*] Browser auto-launch: DISABLED\n"))
 
 
+def print_earth_visualization(session, c: Ansi) -> None:
+    fix = session.current_fix
+    emit(c.bold(c.cyan("\nGOOGLE EARTH 3D LOCATION VIEW")))
+    emit(c.dim("────────────────────────────────────────"))
+    emit(f"Session: {session.sid}")
+    if fix:
+        lat_lon = f"{fix['lat']:.9f},{fix['lon']:.9f}"
+        emit(f"Target Coordinates: {lat_lon}\n")
+        emit("Google Earth URL:")
+        emit(f"https://earth.google.com/web/search/{lat_lon}\n")
+        emit("GeoURI:")
+        emit(f"geo:{fix['lat']:.6f},{fix['lon']:.6f}?z=16\n")
+    else:
+        emit(c.amber("GPS Fix: None available yet (waiting for location permission grant)\n"))
+    emit(c.dim("[*] Browser auto-launch: DISABLED"))
+    emit(c.dim("[*] Open the URL manually in your browser or 3D GIS software.\n"))
+
+
 def resolve_session_arg(target_id: Optional[str], c: Ansi) -> Optional[tuple[Any, str]]:
     sm = get_session_manager()
     if target_id:
@@ -237,7 +255,7 @@ def resolve_session_arg(target_id: Optional[str], c: Ansi) -> Optional[tuple[Any
 def parse_args(argv: list[str]) -> tuple[argparse.Namespace, Optional[list[str]]]:
     parser = argparse.ArgumentParser(
         prog="loclx",
-        description="LOCLX v2.2.0 — Live Location & Information eXtractor (Terminal-First OSINT Tool).",
+        description="LOCLX v2.3.0 — Live Location & Information eXtractor (Terminal-First OSINT Tool).",
         epilog=f"The bind address is fixed at {BIND_ADDR} and cannot be changed.",
     )
     parser.add_argument(
@@ -488,13 +506,23 @@ def main(argv: Optional[list[str]] = None) -> int:
         shutdown_server()
         return 0
 
-    if args.subcommand in ("map", "earth"):
+    if args.subcommand == "map":
         res = resolve_session_arg(getattr(args, "id", None), c)
         if not res:
             shutdown_server()
             return 1
         session, _ = res
         print_map_visualization(session, server_url, c)
+        shutdown_server()
+        return 0
+
+    if args.subcommand == "earth":
+        res = resolve_session_arg(getattr(args, "id", None), c)
+        if not res:
+            shutdown_server()
+            return 1
+        session, _ = res
+        print_earth_visualization(session, c)
         shutdown_server()
         return 0
 

@@ -51,6 +51,33 @@ def haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return 2 * radius * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
+def calculate_bearing(lat1: float, lon1: float, lat2: float, lon2: float) -> tuple[float, str]:
+    """Calculate compass bearing (0-360 deg) and cardinal direction from (lat1, lon1) to (lat2, lon2)."""
+    p1 = math.radians(lat1)
+    p2 = math.radians(lat2)
+    dlmb = math.radians(lon2 - lon1)
+    x = math.sin(dlmb) * math.cos(p2)
+    y = math.cos(p1) * math.sin(p2) - math.sin(p1) * math.cos(p2) * math.cos(dlmb)
+    bearing = (math.degrees(math.atan2(x, y)) + 360.0) % 360.0
+    dirs = ["N", "NE", "E", "SE", "S", "SW", "W", "NW", "N"]
+    idx = int((bearing + 22.5) / 45.0) % 8
+    return bearing, dirs[idx]
+
+
+def generate_map_urls(lat: float, lon: float) -> dict[str, str]:
+    """Generate mapping URLs for GPS coordinates."""
+    lat_lon_9 = f"{lat:.9f},{lon:.9f}"
+    lat_6 = f"{lat:.6f}"
+    lon_6 = f"{lon:.6f}"
+    return {
+        "google_maps": f"https://www.google.com/maps/search/?api=1&query={lat_lon_9}",
+        "google_earth": f"https://earth.google.com/web/search/{lat_lon_9}",
+        "openstreetmap": f"https://www.openstreetmap.org/?mlat={lat_6}&mlon={lon_6}#map=16/{lat_6}/{lon_6}",
+        "geouri": f"geo:{lat_6},{lon_6}?z=16",
+    }
+
+
+
 def format_accuracy(acc: Any) -> str:
     if not is_valid_number(acc):
         return "n/a"

@@ -1,4 +1,4 @@
-"""Live terminal dashboard renderer and target report generator for LOCLX v2.1.2."""
+"""Live terminal dashboard renderer and target report generator for LOCLX v2.3.0."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import shutil
 from typing import Optional
 
 from loclx import VERSION
-from loclx.gps import format_accuracy
+from loclx.gps import calculate_bearing, format_accuracy, generate_map_urls
 from loclx.sessions import Session
 from loclx.utils import Ansi, format_distance, format_uptime
 
@@ -22,7 +22,7 @@ class TerminalDashboard:
 ╔════════════════════════════════════════════════════════════╗
 ║                         LOCLX                              ║
 ║     LIVE LOCATION & INFORMATION eXTRACTOR                  ║
-║                         v2.1.2                             ║
+║                         v2.3.0                             ║
 ╚════════════════════════════════════════════════════════════╝"""
         return self.c.green(banner_art)
 
@@ -319,11 +319,12 @@ def generate_target_report(session: Session, c: Optional[Ansi] = None) -> str:
     if fix and "lat" in fix and "lon" in fix:
         lat = fix["lat"]
         lon = fix["lon"]
-        lat_lon_s = f"{lat:.9f},{lon:.9f}"
+        urls = generate_map_urls(lat, lon)
         lines.extend([
-            f"{'Google Maps':<16}: https://www.google.com/maps/search/?api=1&query={lat_lon_s}",
-            f"{'Google Earth':<16}: https://earth.google.com/web/search/{lat_lon_s}",
-            f"{'OpenStreetMap':<16}: https://www.openstreetmap.org/?mlat={lat:.6f}&mlon={lon:.6f}#map=16/{lat:.6f}/{lon:.6f}",
+            f"{'Google Maps':<16}: {urls['google_maps']}",
+            f"{'Google Earth':<16}: {urls['google_earth']}",
+            f"{'OpenStreetMap':<16}: {urls['openstreetmap']}",
+            f"{'GeoURI':<16}: {urls['geouri']}",
         ])
     else:
         lines.append("GPS Fix: None available yet.")
@@ -336,7 +337,11 @@ def generate_target_report(session: Session, c: Optional[Ansi] = None) -> str:
 
     diff = d.get("diffMeters")
     if diff is not None:
-        lines.append(f"{'GPS → IP':<16}: {format_distance(diff)}")
+        bearing_str = ""
+        if ip and "lat" in ip and "lon" in ip and fix and "lat" in fix and "lon" in fix:
+            deg, cardinal = calculate_bearing(float(ip["lat"]), float(ip["lon"]), float(fix["lat"]), float(fix["lon"]))
+            bearing_str = f" (Bearing: {deg:.0f}° {cardinal})"
+        lines.append(f"{'GPS → IP':<16}: {format_distance(diff)}{bearing_str}")
     else:
         lines.append(f"{'GPS → IP':<16}: —")
     lines.append(f"{'GPS precision':<16}: BROWSER REPORTED")

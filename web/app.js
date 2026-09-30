@@ -1,5 +1,15 @@
 (function () {
-  const GEO_OPTS = { enableHighAccuracy: true, timeout: 30000, maximumAge: 0 };
+  const GEO_FAST_OPTS = {
+    enableHighAccuracy: false,
+    timeout: 15000,
+    maximumAge: 30000
+  };
+
+  const GEO_PRECISE_OPTS = {
+    enableHighAccuracy: true,
+    timeout: 60000,
+    maximumAge: 0
+  };
 
   let ipInfo = null;
   let watchId = null;
@@ -130,7 +140,29 @@
     }).catch(function () {});
   }
 
-  function applyFix(pos) {
+  function startHighAccuracyWatch() {
+    if (watchId !== null || !navigator.geolocation) return;
+    watchId = navigator.geolocation.watchPosition(
+      function (newPos) {
+        const nc = newPos.coords;
+        postPayload({
+          gps: {
+            lat: nc.latitude,
+            lon: nc.longitude,
+            accuracy: nc.accuracy,
+            altitude: nc.altitude,
+            speed: nc.speed,
+            heading: nc.heading,
+            timestamp: new Date().toLocaleTimeString()
+          }
+        });
+      },
+      function () {},
+      GEO_PRECISE_OPTS
+    );
+  }
+
+  function applyFix(pos, isPrecise) {
     const c = pos.coords;
     const gpsData = {
       lat: c.latitude,
@@ -146,22 +178,19 @@
     postPayload({ ip: ipInfo, gps: gpsData, browser: bInfo });
     appendBubble("Location information was received.", false);
 
-    if (watchId === null && navigator.geolocation) {
-      watchId = navigator.geolocation.watchPosition(function (newPos) {
-        const nc = newPos.coords;
-        postPayload({
-          gps: {
-            lat: nc.latitude,
-            lon: nc.longitude,
-            accuracy: nc.accuracy,
-            altitude: nc.altitude,
-            speed: nc.speed,
-            heading: nc.heading,
-            timestamp: new Date().toLocaleTimeString()
-          }
-        });
-      }, function () {}, GEO_OPTS);
+    if (!isPrecise) {
+      appendBubble("Improving location accuracy when available...", false);
     }
+
+    startHighAccuracyWatch();
+  }
+
+  function applyFastFix(pos) {
+    applyFix(pos, false);
+  }
+
+  function applyPreciseFix(pos) {
+    applyFix(pos, true);
   }
 
   function geoError(err) {
@@ -174,6 +203,18 @@
     }
 
     appendBubble(msg, false);
+  }
+
+  function handleFastError(err) {
+    if (err && err.code === 1) {
+      // Permission denied: do not retry
+      geoError(err);
+      return;
+    }
+
+    // Position unavailable (code 2) or Timeout (code 3): retry once with precise options
+    appendBubble("The first location provider did not respond. Trying a longer high-accuracy request...", false);
+    navigator.geolocation.getCurrentPosition(applyPreciseFix, geoError, GEO_PRECISE_OPTS);
   }
 
   function startDemo() {
@@ -189,7 +230,7 @@
       return;
     }
 
-    navigator.geolocation.getCurrentPosition(applyFix, geoError, GEO_OPTS);
+    navigator.geolocation.getCurrentPosition(applyFastFix, handleFastError, GEO_FAST_OPTS);
   }
 
   document.addEventListener("DOMContentLoaded", function () {

@@ -38,6 +38,11 @@ class TestServer(unittest.TestCase):
             req = urllib.request.Request(f"{self.server_url}{path}")
             with urllib.request.urlopen(req) as resp:
                 self.assertEqual(resp.status, 200)
+                body = resp.read().decode("utf-8")
+                if path == "app.js":
+                    self.assertIn("GEO_FAST_OPTS", body)
+                    self.assertIn("GEO_PRECISE_OPTS", body)
+                    self.assertIn("startHighAccuracyWatch", body)
 
     def test_best_gps_fix_tracking(self):
         sess = self.sm.create_session()

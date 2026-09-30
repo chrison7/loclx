@@ -21,7 +21,9 @@ class TestGPS(unittest.TestCase):
     def test_format_accuracy(self):
         self.assertEqual(format_accuracy(8.0), "±8 m")
         self.assertEqual(format_accuracy(12.5), "±12.5 m")
+        self.assertEqual(format_accuracy(25000.0), "±25 km")
         self.assertEqual(format_accuracy(None), "n/a")
+
 
     def test_classify_gps_quality(self):
         self.assertEqual(classify_gps_quality(15.0), "HIGH")

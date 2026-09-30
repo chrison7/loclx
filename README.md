@@ -4,16 +4,17 @@
 ========================================================
                      LOCLX
               Location Intelligence
-                      v2.4.2
+                      v2.4.3
 ========================================================
 
 LOCLX - Authorized Security Testing Tool
 
 [+] Listener started
-[+] Address: 127.0.0.1:8765
+[+] Internal address:
+    127.0.0.1:8765
 
-[+] Capture URL:
-    http://127.0.0.1:8765/
+[+] Public Capture URL:
+    https://YOUR_DOMAIN/
 
 [*] Waiting for connection...
 [*] Press Ctrl+C to stop.
@@ -23,9 +24,10 @@ LOCLX - Authorized Security Testing Tool
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Parrot%20OS%20%7C%20Kali%20Linux%20%7C%20macOS%20%7C%20WSL-lightgrey.svg)]()
 
-LOCLX (Live Location & Information eXtractor) v2.4.2 is a professional Linux security and OSINT laboratory tool featuring a dual-interface architecture:
+LOCLX (Live Location & Information eXtractor) v2.4.3 is a professional Linux security and OSINT laboratory tool featuring a dual-interface architecture:
 1. **Operator Terminal**: Primary intelligence controller displaying listener status, real-time target connection events, device metadata, consent-based GPS fixes, map links, and live location streams.
 2. **Browser Participant Landing Page**: Clean, modern, professional neutral web page ("Browser Information Demo") that clearly explains the demo purpose and requests location permission exclusively via standard browser Geolocation API prompts.
+
 
 Designed for security researchers, privacy advocates, educators, and penetration testing laboratories operating on Kali Linux, Parrot OS, Ubuntu, Debian, Termux, WSL, and macOS.
 
@@ -68,6 +70,80 @@ Map & Earth Links
 - **Security & Privacy Safeguards**: Fixed local bind (`127.0.0.1`), security HTTP headers (CSP, X-Content-Type-Options), rate limiting, request size limits, zero credential theft, and bounded ephemeral session memory.
 
 ---
+
+## Public Deployment & Nginx Reverse Proxy
+
+LOCLX binds strictly to local loopback (`127.0.0.1:8765`) by design. Public exposure must happen through an operator-controlled reverse proxy or secure tunnel.
+
+```
+PUBLIC HTTPS (https://YOUR_DOMAIN)
+     │
+     ▼
+   Nginx
+     │
+     ▼
+127.0.0.1:8765
+     │
+     ▼
+   LOCLX
+```
+
+### Local Execution (Default)
+```bash
+./loclx
+```
+
+### Public Execution behind Nginx
+1. Configure Nginx (`/etc/nginx/sites-available/loclx`):
+```nginx
+server {
+    listen 443 ssl;
+    server_name YOUR_DOMAIN;
+
+    ssl_certificate /etc/letsencrypt/live/YOUR_DOMAIN/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/YOUR_DOMAIN/privkey.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:8765;
+
+        proxy_http_version 1.1;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_read_timeout 60s;
+        proxy_send_timeout 60s;
+    }
+}
+```
+
+2. Start LOCLX with public URL:
+```bash
+export LOCLX_PUBLIC_URL=https://YOUR_DOMAIN
+./loclx
+# Or via flag:
+./loclx --public-url https://YOUR_DOMAIN
+```
+
+> **Note on Geolocation & HTTPS**: Remote browser Geolocation requires a Secure Context (`https://`). Plain HTTP connections will be denied by modern web browsers.
+
+---
+
+## Important GPS Accuracy Limitation
+
+> LOCLX displays the coordinates actually reported by the browser. High accuracy is requested, but the final accuracy depends on the device, operating system, browser, available location services, network conditions and user settings.
+
+LOCLX classifies reported accuracy into 5 levels:
+- `<= 25 m`: `HIGH`
+- `<= 100 m`: `GOOD`
+- `<= 1000 m`: `MODERATE`
+- `<= 10000 m`: `LOW`
+- `> 10000 m`: `COARSE`
+
+LOCLX never fabricates coordinates, alters coordinates, or falsely labels coarse locations as "exact".
+
 
 ## Startup Output Example
 

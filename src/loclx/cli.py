@@ -14,7 +14,7 @@ from loclx.dashboard import TerminalDashboard, generate_compact_information_repo
 from loclx.diagnostics import DiagnosticRunner
 from loclx.ipinfo import IPManager
 from loclx.qrcode import generate_ascii_qr
-from loclx.security import validate_sid_format
+from loclx.security import validate_public_url, validate_sid_format
 from loclx.server import BIND_ADDR, DEFAULT_PORT, get_active_session, get_session_manager, shutdown_server, start_server_background
 from loclx.utils import Ansi, configure_stdio, emit, format_distance, format_uptime, use_color
 
@@ -240,10 +240,16 @@ def parse_args(argv: list[str]) -> tuple[argparse.Namespace, Optional[list[str]]
         help=f"preferred port on {BIND_ADDR} (default: {DEFAULT_PORT})",
     )
     parser.add_argument(
+        "--public-url",
+        type=str,
+        default=os.environ.get("LOCLX_PUBLIC_URL"),
+        help="public HTTPS reverse proxy capture URL (e.g. https://YOUR_DOMAIN)",
+    )
+    parser.add_argument(
         "--tunnel",
         type=str,
         default=os.environ.get("LOCLX_TUNNEL_URL"),
-        help="optional authorized tunnel base URL (e.g. https://my-lab-tunnel.com)",
+        help="alias for --public-url",
     )
     parser.add_argument(
         "--no-browser",
@@ -297,6 +303,16 @@ def main(argv: Optional[list[str]] = None) -> int:
     configure_stdio()
     args, remaining = parse_args(sys.argv[1:] if argv is None else argv)
     c = Ansi(use_color())
+
+    raw_public_url = args.public_url or args.tunnel or os.environ.get("LOCLX_PUBLIC_URL") or os.environ.get("LOCLX_TUNNEL_URL")
+    validated_public_url: Optional[str] = None
+
+    if raw_public_url:
+        try:
+            validated_public_url = validate_public_url(raw_public_url)
+        except ValueError as exc:
+            emit(c.red(f"[-] Invalid public capture URL: {exc}"))
+            return 1
 
     if args.lab:
         run_lab_mode(c)
@@ -418,7 +434,8 @@ def main(argv: Optional[list[str]] = None) -> int:
             shutdown_server()
             return 1
         session, sid = res
-        sess_url = f"{server_url}session/{sid}"
+        target_base = validated_public_url if validated_public_url else server_url.rstrip("/")
+        sess_url = f"{target_base}/session/{sid}"
         emit(c.bold(c.cyan(f"  [+] TERMINAL QR CODE FOR SESSION {sid}:")))
         emit(generate_ascii_qr(sess_url))
         emit("")
@@ -429,14 +446,13 @@ def main(argv: Optional[list[str]] = None) -> int:
     session = get_active_session()
 
     emit(c.green(f"\n[+] Listener started"))
-    emit(c.green(f"[+] Address: {BIND_ADDR}:{bound_port}\n"))
+    emit(c.green(f"[+] Internal address:\n    {BIND_ADDR}:{bound_port}\n"))
 
-    if args.tunnel:
-        tunnel_base = args.tunnel.rstrip("/")
-        emit(c.bold(c.cyan(f"[+] Capture URL:\n    {tunnel_base}/\n")))
+    if validated_public_url:
+        emit(c.bold(c.cyan(f"[+] Public Capture URL:\n    {validated_public_url}/\n")))
     else:
         capture_url = f"http://{BIND_ADDR}:{bound_port}/"
-        emit(c.bold(c.cyan(f"[+] Capture URL:\n    {capture_url}\n")))
+        emit(c.bold(c.cyan(f"[+] Local Capture URL:\n    {capture_url}\n")))
 
     emit(c.amber("[*] Waiting for connection..."))
     emit(c.dim("[*] Press Ctrl+C to stop.\n"))

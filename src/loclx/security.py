@@ -95,3 +95,58 @@ def validate_gps_payload(gps_data: Any) -> bool:
             return False
 
     return True
+
+
+from urllib.parse import urlparse
+
+
+TRUSTED_PROXIES = {"127.0.0.1", "::1", "localhost"}
+
+
+def validate_public_url(url: str) -> str:
+    """Validate LOCLX_PUBLIC_URL.
+
+    Accepts https:// for remote/public configurations and http://localhost (or 127.0.0.1) for local dev.
+    Removes trailing slashes and rejects malformed or unencrypted remote URLs.
+    """
+    if not isinstance(url, str) or not url.strip():
+        raise ValueError("Public URL must be a non-empty string.")
+
+    cleaned = url.strip().rstrip("/")
+    try:
+        parsed = urlparse(cleaned)
+    except Exception as exc:
+        raise ValueError(f"Malformed public URL: {url}") from exc
+
+    if not parsed.scheme or not parsed.netloc:
+        raise ValueError(f"Invalid URL structure: {url}")
+
+    scheme = parsed.scheme.lower()
+    if scheme not in ("http", "https"):
+        raise ValueError(f"Unsupported URL scheme: {scheme}. Use https:// or http://localhost.")
+
+    hostname = (parsed.hostname or "").lower()
+
+    if scheme == "http":
+        if hostname not in ("localhost", "127.0.0.1", "::1"):
+            raise ValueError("Remote public URLs must use HTTPS (http:// allowed for localhost only).")
+
+    return cleaned
+
+
+def extract_client_ip(headers: Any, direct_ip: str) -> str:
+    """Extract client IP address, handling proxy headers only if request comes from a trusted local proxy."""
+    if direct_ip in TRUSTED_PROXIES:
+        x_real_ip = headers.get("X-Real-IP") if headers else None
+        if x_real_ip and x_real_ip.strip():
+            return x_real_ip.strip()
+
+        x_forwarded_for = headers.get("X-Forwarded-For") if headers else None
+        if x_forwarded_for and x_forwarded_for.strip():
+            # First IP in X-Forwarded-For list is the client IP
+            first_ip = x_forwarded_for.split(",")[0].strip()
+            if first_ip:
+                return first_ip
+
+    return direct_ip
+

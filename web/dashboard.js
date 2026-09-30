@@ -1,5 +1,5 @@
 /**
- * LOCLX Security Dashboard JavaScript v2.4.2
+ * LOCLX Security Dashboard JavaScript v2.4.3
  */
 (function () {
   let leafletMap = null;

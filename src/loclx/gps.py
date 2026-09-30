@@ -82,9 +82,15 @@ def format_accuracy(acc: Any) -> str:
     if not is_valid_number(acc):
         return "n/a"
     val = float(acc)
+    if val >= 1000:
+        km = val / 1000.0
+        if km == int(km):
+            return f"±{int(km)} km"
+        return f"±{km:.1f} km"
     if val == int(val):
         return f"±{int(val)} m"
     return f"±{val:.1f} m"
+
 
 
 def classify_gps_quality(acc: Any) -> str:

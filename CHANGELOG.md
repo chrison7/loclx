@@ -1,6 +1,22 @@
 # Changelog
 
+## v2.4.3
+
+Major release adding public Nginx reverse proxy support, public capture URL configuration, proxy header handling, public/admin route separation, improved GPS accuracy acquisition & best-fix strategy, and clean participant UI.
+
+### Fixed / Added
+- **Public Nginx Reverse Proxy Support**: Added configuration support (`LOCLX_PUBLIC_URL` / `--public-url` / `--tunnel`) for running LOCLX behind operator-controlled Nginx proxies while keeping local bind fixed at `127.0.0.1:8765`.
+- **Public URL Validation**: Strict URL scheme (`https://` required for remote hosts, `http://localhost` allowed for dev) and trailing slash normalization.
+- **Trusted Proxy Forwarded IP Extraction**: Extracts client real IP from `X-Real-IP` and `X-Forwarded-For` when request comes from local loopback proxy (`127.0.0.1` / `::1`), preventing IP spoofing.
+- **Public & Admin Route Separation**: Restricts reverse-proxied traffic strictly to participant routes (`/`, `/index.html`, `/app.js`, `/style.css`, `/session/<sid>`, `/report`, `/api/session/<sid>/location`), blocking administrative/dashboard endpoints with HTTP 403 Forbidden.
+- **Robust GPS Acquisition Strategy**: Uses `getCurrentPosition` and `watchPosition` with `{ enableHighAccuracy: true, timeout: 30000, maximumAge: 0 }`.
+- **Best-Fix Tracking & Improvement Deltas**: Selects lowest accuracy value (`best_fix`), logs improvement deltas (`Accuracy: ±25000 m → ±850 m`), and synchronizes all map links (`Google Maps`, `Google Earth`, `OpenStreetMap`) exclusively to `session.best_fix`.
+- **Honest Accuracy Labeling & Coarse Fix Policy**: Classifies fixes into `HIGH` (<= 25m), `GOOD` (<= 100m), `MODERATE` (<= 1000m), `LOW` (<= 10000m), and `COARSE` (> 10000m). Labels coarse fixes accurately without claiming exactness or false reverse-geocoding.
+- **Clean Participant Landing UI**: Neutral participant status messaging (`"Processing..."`, `"Location information received."`, `"Location access was not granted."`) removing yellow warnings and persistent status text.
+- **Terminal Startup Differentiation**: Clearly distinguishes `[+] Internal address:` (`127.0.0.1:<port>`) and `[+] Public Capture URL:` or `[+] Local Capture URL:`.
+
 ## v2.4.2
+
 
 Maintenance and feature release introducing best GPS fix accuracy tracking, BrokenPipe handling, and explicit root capture URL display.
 

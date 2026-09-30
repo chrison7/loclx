@@ -19,6 +19,7 @@ from loclx.qrcode import generate_ascii_qr
 from loclx.security import (
     MAX_REQUEST_BODY,
     RateLimiter,
+    extract_client_ip,
     sanitize_input,
     validate_gps_payload,
     validate_sid_format,
@@ -131,6 +132,24 @@ class LabHandler(BaseHTTPRequestHandler):
 
         return session, 200, "OK"
 
+    def is_proxied_request(self) -> bool:
+        direct_ip = self.client_address[0]
+        return direct_ip in ("127.0.0.1", "::1") and bool(self.headers.get("X-Forwarded-For") or self.headers.get("X-Real-IP"))
+
+    def is_allowed_public_route(self, path: str) -> bool:
+        url_path = path.split("?")[0]
+        if url_path in ("/", "/index.html", "/app.js", "/style.css", "/favicon.ico", "/report", "/api/session/location"):
+            return True
+        if url_path.startswith("/session/"):
+            parts = url_path.strip("/").split("/")
+            if len(parts) == 2 and parts[1]:
+                return True
+        if url_path.startswith("/api/session/"):
+            parts = url_path.strip("/").split("/")
+            if len(parts) == 4 and parts[3] == "location":
+                return True
+        return False
+
     def do_OPTIONS(self) -> None:
         try:
             self.send_response(204)
@@ -140,9 +159,13 @@ class LabHandler(BaseHTTPRequestHandler):
             pass
 
     def do_GET(self) -> None:
-        client_ip = self.client_address[0]
+        client_ip = extract_client_ip(self.headers, self.client_address[0])
         if not _rate_limiter.is_allowed(client_ip):
             self.send_json(429, {"error": "Rate limit exceeded"})
+            return
+
+        if self.is_proxied_request() and not self.is_allowed_public_route(self.path):
+            self.send_json(403, {"error": "Access denied: Administrative endpoint restricted to local operator"})
             return
 
         url_path = self.path.split("?")[0]
@@ -273,9 +296,13 @@ class LabHandler(BaseHTTPRequestHandler):
             self.send_error(404, "Not Found")
 
     def do_POST(self) -> None:
-        client_ip = self.client_address[0]
+        client_ip = extract_client_ip(self.headers, self.client_address[0])
         if not _rate_limiter.is_allowed(client_ip):
             self.send_json(429, {"error": "Rate limit exceeded"})
+            return
+
+        if self.is_proxied_request() and not self.is_allowed_public_route(self.path):
+            self.send_json(403, {"error": "Access denied: Administrative endpoint restricted to local operator"})
             return
 
         content_length = int(self.headers.get("Content-Length", 0))
@@ -335,9 +362,13 @@ class LabHandler(BaseHTTPRequestHandler):
             self.send_error(404, "Not Found")
 
     def do_DELETE(self) -> None:
-        client_ip = self.client_address[0]
+        client_ip = extract_client_ip(self.headers, self.client_address[0])
         if not _rate_limiter.is_allowed(client_ip):
             self.send_json(429, {"error": "Rate limit exceeded"})
+            return
+
+        if self.is_proxied_request() and not self.is_allowed_public_route(self.path):
+            self.send_json(403, {"error": "Access denied: Administrative endpoint restricted to local operator"})
             return
 
         url_path = self.path.split("?")[0]
@@ -389,9 +420,9 @@ class LabHandler(BaseHTTPRequestHandler):
         emit(f"Timezone         : {b.get('timezone') or '—'}")
         emit(f"Screen           : {b.get('screenResolution') or '—'}")
         emit(f"Viewport         : {b.get('viewportSize') or '—'}")
-        emit(f"CPU Cores        : {b.get('cpuCores') or '—'}")
-        emit(f"Device Pixel Ratio: {b.get('devicePixelRatio') or '1'}")
-        emit(f"Touch Support    : {b.get('touchSupport') or '—'}")
+        emit(f"CPU              : {b.get('cpuCores') or '—'}")
+        emit(f"DPR              : {b.get('devicePixelRatio') or '1'}")
+        emit(f"Touch            : {b.get('touchSupport') or '—'}")
         emit(f"Device Type      : {b.get('deviceType') or 'Desktop'}\n")
         emit(c.amber("[*] Waiting for location permission...\n"))
 
@@ -445,33 +476,40 @@ class LabHandler(BaseHTTPRequestHandler):
                     emit(c.green("\n[+] LOCATION RECEIVED\n"))
                     emit(c.bold(c.green("BEST GPS FIX")))
                     emit(c.dim("----------------------------------------"))
-                    emit(f"Latitude         : {lat:.9f}")
-                    emit(f"Longitude        : {lon:.9f}")
-                    emit(f"Accuracy         : {acc_s}")
-                    emit(f"GPS Quality      : {quality} ({acc_s})")
-                    emit(f"Altitude         : {alt_s}")
-                    emit(f"Speed            : {spd_s}")
-                    emit(f"Heading          : {hdg_s}")
-                    emit(f"Timestamp        : {best.get('timestamp') or '—'}\n")
+                    emit(f"Latitude      : {lat:.9f}")
+                    emit(f"Longitude     : {lon:.9f}")
+                    emit(f"Accuracy      : {acc_s}")
+                    emit(f"GPS Quality   : {quality}")
+                    if quality == "COARSE":
+                        emit("STATUS        : Waiting for a better browser fix\n")
+                    else:
+                        emit(f"Altitude      : {alt_s}")
+                        emit(f"Speed         : {spd_s}")
+                        emit(f"Heading       : {hdg_s}")
+                        emit(f"Timestamp     : {best.get('timestamp') or '—'}\n")
 
                     emit(c.bold(c.cyan("MAP LINKS")))
                     emit(c.dim("----------------------------------------"))
-                    emit(f"Google Maps      : https://www.google.com/maps?q={lat_lon_9}")
-                    emit(f"Google Earth     : https://earth.google.com/web/search/{lat_lon_9}")
-                    emit(f"OpenStreetMap    : https://www.openstreetmap.org/?mlat={lat_6}&mlon={lon_6}")
+                    emit(f"Google Maps   : https://www.google.com/maps?q={lat_lon_9}")
+                    emit(f"Google Earth  : https://earth.google.com/web/search/{lat_lon_9}")
+                    emit(f"OpenStreetMap : https://www.openstreetmap.org/?mlat={lat_6}&mlon={lon_6}")
                     emit(c.cyan("========================================================\n"))
                 elif is_better and old_acc is not None and new_acc is not None:
+                    old_acc_str = f"±{int(old_acc)} m" if old_acc == int(old_acc) else format_accuracy(old_acc)
+                    new_acc_str = f"±{int(new_acc)} m" if new_acc == int(new_acc) else format_accuracy(new_acc)
                     emit(c.green(f"\n[+] BETTER GPS FIX"))
-                    emit(c.green(f"    Accuracy improved: {format_accuracy(old_acc)} → {format_accuracy(new_acc)}"))
-                    emit(f"    LAT      : {lat:.9f}")
-                    emit(f"    LON      : {lon:.9f}")
-                    emit(f"    QUALITY  : {quality}")
-                    emit(f"    TIME     : {best.get('timestamp') or '—'}\n")
-                    emit(c.bold(c.cyan("UPDATED MAP LINKS")))
+                    emit(c.green(f"    Accuracy: {old_acc_str} → {new_acc_str}\n"))
+                    emit(c.bold(c.green("BEST GPS FIX")))
                     emit(c.dim("----------------------------------------"))
-                    emit(f"Google Maps      : https://www.google.com/maps?q={lat_lon_9}")
-                    emit(f"Google Earth     : https://earth.google.com/web/search/{lat_lon_9}")
-                    emit(f"OpenStreetMap    : https://www.openstreetmap.org/?mlat={lat_6}&mlon={lon_6}\n")
+                    emit(f"Latitude      : {lat:.9f}")
+                    emit(f"Longitude     : {lon:.9f}")
+                    emit(f"Accuracy      : {acc_s}")
+                    emit(f"GPS Quality   : {quality}\n")
+                    emit(c.bold(c.cyan("MAP LINKS")))
+                    emit(c.dim("----------------------------------------"))
+                    emit(f"Google Maps   : https://www.google.com/maps?q={lat_lon_9}")
+                    emit(f"Google Earth  : https://earth.google.com/web/search/{lat_lon_9}")
+                    emit(f"OpenStreetMap : https://www.openstreetmap.org/?mlat={lat_6}&mlon={lon_6}\n")
                 else:
                     curr = session.current_fix
                     emit(c.green(f"\n[+] GPS UPDATE"))
@@ -479,6 +517,7 @@ class LabHandler(BaseHTTPRequestHandler):
                     emit(f"    LON      : {curr['lon']:.9f}")
                     emit(f"    ACCURACY : {format_accuracy(curr.get('accuracy'))}")
                     emit(f"    TIME     : {curr.get('timestamp') or '—'}\n")
+
 
 
 def bind_server(preferred_port: int = DEFAULT_PORT) -> ThreadingHTTPServer:

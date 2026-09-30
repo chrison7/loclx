@@ -181,6 +181,43 @@ class TestServer(unittest.TestCase):
             self.assertEqual(data["id"], sess.sid)
             self.assertIn(sess.sid, data["url"])
 
+    def test_public_admin_route_separation(self):
+        proxy_headers = {"X-Forwarded-For": "203.0.113.50"}
+
+        # Public endpoints accessible via proxy
+        req_root = urllib.request.Request(self.server_url, headers=proxy_headers)
+        with urllib.request.urlopen(req_root) as resp:
+            self.assertEqual(resp.status, 200)
+
+        req_js = urllib.request.Request(f"{self.server_url}app.js", headers=proxy_headers)
+        with urllib.request.urlopen(req_js) as resp:
+            self.assertEqual(resp.status, 200)
+
+        # Admin/management endpoints blocked via proxy
+        for admin_path in ("dashboard", "api/config", "api/diagnostics", "api/session/active"):
+            req_admin = urllib.request.Request(f"{self.server_url}{admin_path}", headers=proxy_headers)
+            with self.assertRaises(urllib.error.HTTPError) as cm:
+                urllib.request.urlopen(req_admin)
+            self.assertEqual(cm.exception.code, 403)
+
+    def test_forwarded_ip_handling(self):
+        sess = self.sm.create_session()
+        proxy_headers = {
+            "Content-Type": "application/json",
+            "X-Forwarded-For": "198.51.100.77",
+        }
+        payload = json.dumps({"gps": {"lat": 10.5, "lon": 76.5, "accuracy": 10.0}}).encode("utf-8")
+        req = urllib.request.Request(
+            f"{self.server_url}api/session/{sess.sid}/location",
+            data=payload,
+            headers=proxy_headers,
+        )
+        with urllib.request.urlopen(req) as resp:
+            self.assertEqual(resp.status, 200)
+
+        self.assertEqual(sess.client_ip, "198.51.100.77")
+
 
 if __name__ == "__main__":
     unittest.main()
+

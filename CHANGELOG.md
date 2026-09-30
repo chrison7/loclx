@@ -1,6 +1,14 @@
 # Changelog
 
-## v2.4.0
+## v2.4.1
+
+Major architecture update separating the Operator Terminal and Participant Browser Page into clean, distinct interfaces.
+
+### Added / Changed
+- **Redesigned Participant Landing Page**: Replaced terminal-style participant page with a clean, professional, mobile-first neutral web page ("Browser Information Demo") with transparent disclosure and `[ Start Demo ]` button.
+- **Operator Terminal Refinement**: Removed dashboard links and local session URL clutter from default startup output; primary focus on listener state and target intelligence stream.
+- **Internal Session Architecture**: Preserved session isolation, random session tokens (`LX-XXXXXX`), request validation, rate limiting, and expiration while hiding session complexity from participants.
+- **Clean Geolocation Error Handling**: Handled `PERMISSION_DENIED`, `POSITION_UNAVAILABLE`, and `TIMEOUT` with clear, non-repetitive participant feedback.
 
 Major release transforming the default user experience into a streamlined, Hound-style terminal capture workflow while maintaining internal session isolation and token security.
 

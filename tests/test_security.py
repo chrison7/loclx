@@ -4,7 +4,7 @@ import unittest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 
-from loclx.security import RateLimiter, sanitize_input, validate_json_payload  # noqa: E402
+from loclx.security import RateLimiter, sanitize_input, validate_gps_payload, validate_json_payload  # noqa: E402
 
 
 class TestSecurity(unittest.TestCase):
@@ -24,6 +24,22 @@ class TestSecurity(unittest.TestCase):
     def test_validate_json_payload(self):
         self.assertTrue(validate_json_payload({"key": "val"}))
         self.assertFalse(validate_json_payload("not a dict"))
+
+    def test_validate_gps_payload(self):
+        self.assertTrue(validate_gps_payload({"lat": 10.12, "lon": 76.12, "accuracy": 5.0}))
+        # Invalid latitude
+        self.assertFalse(validate_gps_payload({"lat": 95.0, "lon": 76.12, "accuracy": 5.0}))
+        self.assertFalse(validate_gps_payload({"lat": -95.0, "lon": 76.12, "accuracy": 5.0}))
+        # Invalid longitude
+        self.assertFalse(validate_gps_payload({"lat": 10.12, "lon": 185.0, "accuracy": 5.0}))
+        self.assertFalse(validate_gps_payload({"lat": 10.12, "lon": -185.0, "accuracy": 5.0}))
+        # Invalid accuracy
+        self.assertFalse(validate_gps_payload({"lat": 10.12, "lon": 76.12, "accuracy": -5.0}))
+        # NaN rejection
+        self.assertFalse(validate_gps_payload({"lat": float("nan"), "lon": 76.12, "accuracy": 5.0}))
+        # Infinity rejection
+        self.assertFalse(validate_gps_payload({"lat": 10.12, "lon": float("inf"), "accuracy": 5.0}))
+        self.assertFalse(validate_gps_payload({"lat": float("-inf"), "lon": 76.12, "accuracy": 5.0}))
 
 
 if __name__ == "__main__":

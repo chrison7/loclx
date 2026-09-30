@@ -20,15 +20,14 @@ from loclx.utils import Ansi, configure_stdio, emit, format_distance, format_upt
 
 
 def print_banner(c: Ansi) -> None:
-    banner = r"""
+    banner = f"""
 ========================================================
                      LOCLX
               Location Intelligence
-                      v2.4.0
+                      v{VERSION}
 ========================================================
 
-LOCLX - Authorized Security Testing Tool
-Consent-based browser GPS collection"""
+LOCLX - Authorized Security Testing Tool"""
     emit(c.bold(c.cyan(banner)))
 
 
@@ -225,7 +224,7 @@ def resolve_session_arg(target_id: Optional[str], c: Ansi) -> Optional[tuple[Any
 def parse_args(argv: list[str]) -> tuple[argparse.Namespace, Optional[list[str]]]:
     parser = argparse.ArgumentParser(
         prog="loclx",
-        description="LOCLX v2.4.0 — Live Location & Information eXtractor (Terminal-First OSINT Tool).",
+        description=f"LOCLX v{VERSION} — Live Location & Information eXtractor (Terminal-First OSINT Tool).",
         epilog=f"The bind address is fixed at {BIND_ADDR} and cannot be changed.",
     )
     parser.add_argument(
@@ -426,28 +425,20 @@ def main(argv: Optional[list[str]] = None) -> int:
         shutdown_server()
         return 0
 
-    # Default Hound-style capture workflow
+    # Default capture workflow
     session = get_active_session()
-    sess_url = f"{server_url}session/{session.sid}"
-    dash_url = f"{server_url}dashboard/{session.sid}"
 
-    emit(c.green(f"\n[+] Local server starting..."))
-    emit(c.green(f"[+] Listening on: {BIND_ADDR}:{bound_port}\n"))
+    emit(c.green(f"\n[+] Listener started"))
+    emit(c.green(f"[+] Address: {BIND_ADDR}:{bound_port}\n"))
 
     if args.tunnel:
         tunnel_base = args.tunnel.rstrip("/")
         public_sess_url = f"{tunnel_base}/session/{session.sid}"
-        public_dash_url = f"{tunnel_base}/dashboard/{session.sid}"
-        emit(c.green("[+] Tunnel active"))
-        emit(c.bold(c.cyan(f"[*] Public Test Link:\n    {public_sess_url}\n")))
-        emit(c.cyan(f"[*] Dashboard:\n    {public_dash_url}\n"))
+        emit(c.bold(c.cyan(f"[+] Capture endpoint ready\n    {public_sess_url}\n")))
     else:
-        emit(c.green("[+] Running locally"))
-        emit(c.bold(c.cyan(f"[*] Local Link:\n    {sess_url}\n")))
-        emit(c.cyan(f"[*] Dashboard:\n    {dash_url}\n"))
+        emit(c.green("[+] Local listener ready\n"))
 
-    emit(c.amber("[*] Waiting for target..."))
-    emit(c.dim("[*] Share the link with the authorized test participant."))
+    emit(c.amber("[*] Waiting for connection..."))
     emit(c.dim("[*] Press Ctrl+C to stop.\n"))
 
     try:

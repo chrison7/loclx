@@ -26,7 +26,7 @@ class TestServer(unittest.TestCase):
         with urllib.request.urlopen(req) as resp:
             self.assertEqual(resp.status, 200)
             body = resp.read().decode("utf-8")
-            self.assertIn("LOCLX", body)
+            self.assertIn("Browser Information Demo", body)
 
     def test_get_dashboard(self):
         req = urllib.request.Request(f"{self.server_url}dashboard")

@@ -4,28 +4,47 @@
 ========================================================
                      LOCLX
               Location Intelligence
+                      v2.4.1
 ========================================================
 
 LOCLX - Authorized Security Testing Tool
-Consent-based browser GPS collection
+[+] Listener started
+[+] Address: 127.0.0.1:8765
+
+[*] Waiting for connection...
+[*] Press Ctrl+C to stop.
 ```
 
 [![Python Version](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Parrot%20OS%20%7C%20Kali%20Linux%20%7C%20macOS%20%7C%20WSL-lightgrey.svg)]()
 
-LOCLX (Live Location & Information eXtractor) v2.4.0 is a terminal-first, stream-oriented Linux security and OSINT information-gathering tool. It demonstrates the technical boundary between approximate IP-derived network intelligence and precise, user-permissioned browser GPS coordinates.
+LOCLX (Live Location & Information eXtractor) v2.4.1 is a professional Linux security and OSINT laboratory tool featuring a dual-interface architecture:
+1. **Operator Terminal**: Primary intelligence controller displaying listener status, real-time target connection events, device metadata, consent-based GPS fixes, map links, and live location streams.
+2. **Browser Participant Landing Page**: Clean, modern, professional neutral web page ("Browser Information Demo") that clearly explains the demo purpose and requests location permission exclusively via standard browser Geolocation API prompts.
 
 Designed for security researchers, privacy advocates, educators, and penetration testing laboratories operating on Kali Linux, Parrot OS, Ubuntu, Debian, Termux, WSL, and macOS.
 
 ---
 
-## Hound-Style Stream Workflow
-
-LOCLX is **100% terminal-first and stream-oriented**. Running `./loclx` or `python loclx` starts the local server, generates a capture link, enters a live waiting state (`[*] Waiting for target...`), and streams target connections and permission-granted GPS fixes directly to the console.
+## Architecture & Workflow
 
 ```
-START → SERVER → GENERATE LINK → WAITING → TARGET CONNECTED → BROWSER INFO → LOCATION PERMISSION → GPS RECEIVED → TARGET REPORT → MAP / EARTH LINKS → LIVE UPDATES
+OPERATOR TERMINAL                  PARTICIPANT BROWSER PAGE
+-----------------                  ------------------------
+./loclx
+   │
+Listener Started                   Browser Information Demo
+   │                                           │
+Waiting for connection                     [ Start Demo ]
+   │                                           │
+Target Connected ─────────────── Native Browser Permission Prompt
+   │                                           │
+Browser Metadata                               │
+   │                                     Allow / Deny
+Location Received ◄───────────────────────────┘
+   │
+Map & Earth Links
 ```
 
 ---

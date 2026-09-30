@@ -1,5 +1,17 @@
 # Changelog
 
+## v2.4.6
+
+Release enforcing exact browser GPS preservation, LOCATION DIAGNOSTICS output formatting, best-fix map links, coarse fix notices (>10 km), public Nginx capture URL display workflow, and Parrot OS VM hardware testing notes.
+
+### Fixed / Added
+- **Browser GPS Source & Exact Preservation**: All GPS coordinates come strictly from `navigator.geolocation` (`getCurrentPosition` followed by `watchPosition` with high accuracy options). Coordinates are preserved without math transformation, IP substitution, or operator location override.
+- **Location Diagnostics Terminal Output**: Added `LOCATION DIAGNOSTICS` section displaying Source (`Browser Geolocation API`), Latitude, Longitude, Accuracy, Quality, Updates count, and Best fix indicator (`YES`).
+- **Coarse Fix Notice**: Renders `NOTICE: Browser supplied a coarse location. No coordinate correction was applied.` when accuracy exceeds 10 km.
+- **Best-Fix Map Links**: Generated Google Maps, Google Earth, and OpenStreetMap URLs exclusively use `session.best_fix`.
+- **Public Capture URL Startup Display**: When `--public-url` or `LOCLX_PUBLIC_URL` is set, CLI startup output displays `[+] Public Capture URL:` ONLY and suppresses `[+] Local Capture URL:`.
+- **Nginx Example & Virtual Machine Guidance**: Complete documented Nginx reverse proxy configuration in `README.md` and explanation of browser location limitations inside Parrot/Kali virtual machines.
+
 ## v2.4.5
 
 Maintenance and documentation release enforcing strict GPS vs. IP location separation, honest accuracy labeling, map link generation using best fix only, and Nginx deployment architecture.

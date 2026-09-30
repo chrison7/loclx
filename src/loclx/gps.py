@@ -70,9 +70,9 @@ def generate_map_urls(lat: float, lon: float) -> dict[str, str]:
     lat_6 = f"{lat:.6f}"
     lon_6 = f"{lon:.6f}"
     return {
-        "google_maps": f"https://www.google.com/maps/search/?api=1&query={lat_lon_9}",
+        "google_maps": f"https://www.google.com/maps?q={lat_lon_9}",
         "google_earth": f"https://earth.google.com/web/search/{lat_lon_9}",
-        "openstreetmap": f"https://www.openstreetmap.org/?mlat={lat_6}&mlon={lon_6}#map=16/{lat_6}/{lon_6}",
+        "openstreetmap": f"https://www.openstreetmap.org/?mlat={lat_6}&mlon={lon_6}",
         "geouri": f"geo:{lat_6},{lon_6}?z=16",
     }
 

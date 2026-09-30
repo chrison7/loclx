@@ -243,9 +243,39 @@ class TestServer(unittest.TestCase):
         from loclx.dashboard import generate_target_report
         report = generate_target_report(sess)
         self.assertIn("10.123456789", report)
-        self.assertIn("query=10.123456789,76.123456789", report)
-        self.assertNotIn("query=12.9716", report)
+        self.assertIn("q=10.123456789,76.123456789", report)
+        self.assertNotIn("12.9716", report.split("MAP LINKS")[1])
 
+    def test_coarse_gps_labelling(self):
+        sess = self.sm.create_session()
+        payload = json.dumps({
+            "gps": {"lat": 10.1076, "lon": 76.3516, "accuracy": 25000.0},
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            f"{self.server_url}api/session/{sess.sid}/location",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+        )
+        with urllib.request.urlopen(req) as resp:
+            self.assertEqual(resp.status, 200)
+
+        self.assertEqual(sess.best_accuracy, 25000.0)
+        from loclx.gps import classify_gps_quality
+        self.assertEqual(classify_gps_quality(sess.best_accuracy), "COARSE")
+
+    def test_gps_timeout_and_unavailable_handling(self):
+        sess = self.sm.create_session()
+        for err_code in (2, 3):
+            payload = json.dumps({"denied": True, "errorCode": err_code}).encode("utf-8")
+            req = urllib.request.Request(
+                f"{self.server_url}api/session/{sess.sid}/location",
+                data=payload,
+                headers={"Content-Type": "application/json"},
+            )
+            with urllib.request.urlopen(req) as resp:
+                self.assertEqual(resp.status, 200)
+                data = json.loads(resp.read().decode("utf-8"))
+                self.assertEqual(data["status"], "ok")
 
 
 if __name__ == "__main__":

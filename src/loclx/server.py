@@ -1,4 +1,4 @@
-"""HTTP API Server and Static Web Asset Server for LOCLX v2.2.0."""
+"""HTTP API Server and Static Web Asset Server for LOCLX v2.4.6."""
 
 from __future__ import annotations
 
@@ -466,61 +466,70 @@ class LabHandler(BaseHTTPRequestHandler):
                 lat_lon_9 = f"{lat:.9f},{lon:.9f}"
                 lat_6 = f"{lat:.6f}"
                 lon_6 = f"{lon:.6f}"
-                acc_s = format_accuracy(best.get("accuracy"))
+                acc_val = best.get("accuracy")
+                acc_s = format_accuracy(acc_val)
                 alt_s = format_altitude(best.get("altitude"))
                 spd_s = f"{best['speed']:.1f} m/s" if best.get("speed") is not None else "n/a"
                 hdg_s = f"{best['heading']:.0f}°" if best.get("heading") is not None else "n/a"
-                quality = classify_gps_quality(best.get("accuracy"))
+                quality = classify_gps_quality(acc_val)
 
                 if is_first_gps:
                     emit(c.green("\n[+] LOCATION RECEIVED\n"))
-                    emit(c.bold(c.green("LOCATION")))
+                    emit(c.bold(c.green("LOCATION DIAGNOSTICS")))
                     emit(c.dim("----------------------------------------"))
-                    emit(f"Source        : Browser Geolocation")
-                    emit(f"Latitude      : {lat:.9f}")
-                    emit(f"Longitude     : {lon:.9f}")
-                    emit(f"Accuracy      : {acc_s}")
-                    emit(f"Quality       : {quality}")
-                    if quality == "COARSE":
-                        emit("Status        : COARSE BROWSER FIX\n")
-                    else:
-                        emit(f"Altitude      : {alt_s}")
-                        emit(f"Speed         : {spd_s}")
-                        emit(f"Heading       : {hdg_s}")
-                        emit(f"Timestamp     : {best.get('timestamp') or '—'}\n")
+                    emit("Source          : Browser Geolocation API")
+                    emit(f"Latitude        : {lat:.9f}")
+                    emit(f"Longitude       : {lon:.9f}")
+                    emit(f"Accuracy        : {acc_s}")
+                    emit(f"Quality         : {quality}")
+                    emit(f"Updates         : {session.gps_updates}")
+                    emit("Best fix        : YES\n")
+                    if acc_val is not None and float(acc_val) > 10000.0:
+                        emit(c.amber("NOTICE:"))
+                        emit(c.amber("Browser supplied a coarse location."))
+                        emit(c.amber("No coordinate correction was applied.\n"))
+                        emit("Status          : COARSE BROWSER FIX\n")
 
                     emit(c.bold(c.cyan("NETWORK LOCATION")))
                     emit(c.dim("----------------------------------------"))
-                    emit(f"Source        : IP geolocation")
-                    emit(f"Accuracy      : APPROXIMATE\n")
+                    emit("Source          : IP geolocation")
+                    emit("Accuracy        : APPROXIMATE\n")
 
                     emit(c.bold(c.cyan("MAP LINKS")))
                     emit(c.dim("----------------------------------------"))
-                    emit(f"Google Maps   : https://www.google.com/maps?q={lat_lon_9}")
-                    emit(f"Google Earth  : https://earth.google.com/web/search/{lat_lon_9}")
-                    emit(f"OpenStreetMap : https://www.openstreetmap.org/?mlat={lat_6}&mlon={lon_6}")
+                    emit(f"Google Maps     : https://www.google.com/maps?q={lat_lon_9}")
+                    emit(f"Google Earth    : https://earth.google.com/web/search/{lat_lon_9}")
+                    emit(f"OpenStreetMap   : https://www.openstreetmap.org/?mlat={lat_6}&mlon={lon_6}")
                     emit(c.cyan("========================================================\n"))
                 elif is_better and old_acc is not None and new_acc is not None:
                     old_acc_str = f"±{int(old_acc)} m" if old_acc == int(old_acc) else format_accuracy(old_acc)
                     new_acc_str = f"±{int(new_acc)} m" if new_acc == int(new_acc) else format_accuracy(new_acc)
                     emit(c.green(f"\n[+] BETTER GPS FIX"))
                     emit(c.green(f"    Accuracy: {old_acc_str} → {new_acc_str}\n"))
-                    emit(c.bold(c.green("LOCATION")))
+                    emit(c.bold(c.green("LOCATION DIAGNOSTICS")))
                     emit(c.dim("----------------------------------------"))
-                    emit(f"Source        : Browser Geolocation")
-                    emit(f"Latitude      : {lat:.9f}")
-                    emit(f"Longitude     : {lon:.9f}")
-                    emit(f"Accuracy      : {acc_s}")
-                    emit(f"Quality       : {quality}\n")
+                    emit("Source          : Browser Geolocation API")
+                    emit(f"Latitude        : {lat:.9f}")
+                    emit(f"Longitude       : {lon:.9f}")
+                    emit(f"Accuracy        : {acc_s}")
+                    emit(f"Quality         : {quality}")
+                    emit(f"Updates         : {session.gps_updates}")
+                    emit("Best fix        : YES\n")
+                    if acc_val is not None and float(acc_val) > 10000.0:
+                        emit(c.amber("NOTICE:"))
+                        emit(c.amber("Browser supplied a coarse location."))
+                        emit(c.amber("No coordinate correction was applied.\n"))
+
                     emit(c.bold(c.cyan("NETWORK LOCATION")))
                     emit(c.dim("----------------------------------------"))
-                    emit(f"Source        : IP geolocation")
-                    emit(f"Accuracy      : APPROXIMATE\n")
+                    emit("Source          : IP geolocation")
+                    emit("Accuracy        : APPROXIMATE\n")
+
                     emit(c.bold(c.cyan("MAP LINKS")))
                     emit(c.dim("----------------------------------------"))
-                    emit(f"Google Maps   : https://www.google.com/maps?q={lat_lon_9}")
-                    emit(f"Google Earth  : https://earth.google.com/web/search/{lat_lon_9}")
-                    emit(f"OpenStreetMap : https://www.openstreetmap.org/?mlat={lat_6}&mlon={lon_6}\n")
+                    emit(f"Google Maps     : https://www.google.com/maps?q={lat_lon_9}")
+                    emit(f"Google Earth    : https://earth.google.com/web/search/{lat_lon_9}")
+                    emit(f"OpenStreetMap   : https://www.openstreetmap.org/?mlat={lat_6}&mlon={lon_6}\n")
                 else:
                     curr = session.current_fix
                     emit(c.green(f"\n[+] GPS UPDATE"))

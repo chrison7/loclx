@@ -4,7 +4,7 @@
 ========================================================
                      LOCLX
               Location Intelligence
-                      v2.4.7
+                      v2.4.8
 ========================================================
 
 LOCLX - Authorized Security Testing Tool
@@ -25,7 +25,7 @@ LOCLX - Authorized Security Testing Tool
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Parrot%20OS%20%7C%20Kali%20Linux%20%7C%20macOS%20%7C%20WSL-lightgrey.svg)]()
 
-LOCLX (Live Location & Information eXtractor) v2.4.7 is a professional Linux security and OSINT laboratory tool featuring a dual-interface architecture:
+LOCLX (Live Location & Information eXtractor) v2.4.8 is a professional Linux security and OSINT laboratory tool featuring a dual-interface architecture:
 1. **Operator Terminal**: Primary intelligence controller displaying listener status, real-time target connection events, device metadata, consent-based GPS fixes, map links, and live location streams.
 2. **Browser Participant Landing Page**: Modern, responsive, mobile-first chat/messaging interface ("Browser Information Demo") that presents information disclosures as message bubbles and requests location permission exclusively via standard browser Geolocation API prompts.
 

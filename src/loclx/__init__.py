@@ -1,6 +1,6 @@
 """LOCLX — Live Location & Information eXtractor."""
 
-VERSION = "2.4.7"
+VERSION = "2.4.8"
 __version__ = VERSION
 __all__ = ["VERSION", "__version__"]
 

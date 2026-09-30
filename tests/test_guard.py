@@ -63,7 +63,7 @@ class TestGuard(unittest.TestCase):
 
     def test_version_constant(self):
         self.assertTrue(hasattr(self.loclx, "VERSION"))
-        self.assertEqual(self.loclx.VERSION, "2.4.7")
+        self.assertEqual(self.loclx.VERSION, "2.4.8")
 
 
 

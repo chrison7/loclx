@@ -75,7 +75,12 @@ class LabHandler(BaseHTTPRequestHandler):
 
     def send_cors_headers(self) -> None:
         try:
-            self.send_header("Access-Control-Allow-Origin", f"http://{BIND_ADDR}")
+            origin = self.headers.get("Origin") if hasattr(self, "headers") and self.headers else None
+            if origin:
+                self.send_header("Access-Control-Allow-Origin", origin)
+                self.send_header("Vary", "Origin")
+            else:
+                self.send_header("Access-Control-Allow-Origin", f"http://{BIND_ADDR}")
             self.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
             self.send_header("Access-Control-Allow-Headers", "Content-Type")
             self.send_header("X-Content-Type-Options", "nosniff")
@@ -451,8 +456,19 @@ class LabHandler(BaseHTTPRequestHandler):
                 self._print_browser_info_table(session, c)
 
         if denied:
-            emit(c.red("\n[-] Location permission denied."))
-            emit(c.dim("[*] Browser/device information may still be available.\n"))
+            err_code = payload.get("errorCode") if isinstance(payload, dict) else None
+            if err_code == 2:
+                emit(c.red("\n[-] Location position unavailable."))
+                emit(c.dim("    Reason: Browser location provider could not determine physical position."))
+                emit(c.dim("[*] Device may lack GPS/Wi-Fi positioning services.\n"))
+            elif err_code == 3:
+                emit(c.red("\n[-] Location acquisition timed out."))
+                emit(c.dim("    Reason: Geolocation request timed out before acquiring a fix."))
+                emit(c.dim("[*] Check device location settings.\n"))
+            else:
+                emit(c.red("\n[-] Location permission denied."))
+                emit(c.dim("    Reason: User or browser denied location permission."))
+                emit(c.dim("[*] Browser/device information may still be available.\n"))
             return
 
         if isinstance(gps_data, dict) and "lat" in gps_data and "lon" in gps_data:

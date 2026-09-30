@@ -1,5 +1,15 @@
 # Changelog
 
+## v2.4.8
+
+Hardening release introducing dynamic CORS `Origin` reflection for public HTTPS reverse proxy/Cloudflare deployment models, structured geolocation error diagnostics (`PERMISSION_DENIED`, `POSITION_UNAVAILABLE`, `TIMEOUT`), and regression test suite expansion.
+
+### Fixed / Added
+- **Public HTTPS CORS Correctness**: Dynamically reflects request `Origin` header when present, enabling public HTTPS session pages to POST location data without CORS policy blocks.
+- **Enhanced Location Error Diagnostics**: Distinguishes `PERMISSION_DENIED` (user/browser denied), `POSITION_UNAVAILABLE` (provider unable to fix), and `TIMEOUT` (request timed out) with operator-side diagnostic explanation.
+- **Client Geolocation Standards Alignment**: Verified standards-compliant Geolocation API usage (`getCurrentPosition` & `watchPosition`, `enableHighAccuracy: true`, `timeout: 30000`, `maximumAge: 0`).
+- **Public Endpoint Security**: Preserved administrative/dashboard route separation (HTTP 403 Forbidden when proxied) and strict session scoping.
+
 ## v2.4.7
 
 Major release enforcing mandatory public capture endpoints (configured public Nginx URL or Cloudflare quick tunnel), complete removal of local capture fallback mode, session capture URL formatting (`/session/LX-XXXXXX`), and explicit startup failure when no public endpoint is supplied.

@@ -265,7 +265,7 @@ class TestServer(unittest.TestCase):
 
     def test_gps_timeout_and_unavailable_handling(self):
         sess = self.sm.create_session()
-        for err_code in (2, 3):
+        for err_code in (1, 2, 3):
             payload = json.dumps({"denied": True, "errorCode": err_code}).encode("utf-8")
             req = urllib.request.Request(
                 f"{self.server_url}api/session/{sess.sid}/location",
@@ -276,6 +276,22 @@ class TestServer(unittest.TestCase):
                 self.assertEqual(resp.status, 200)
                 data = json.loads(resp.read().decode("utf-8"))
                 self.assertEqual(data["status"], "ok")
+
+    def test_public_https_cors_headers(self):
+        public_origin = "https://custom-tunnel.trycloudflare.com"
+        req = urllib.request.Request(
+            self.server_url,
+            headers={"Origin": public_origin},
+        )
+        with urllib.request.urlopen(req) as resp:
+            self.assertEqual(resp.status, 200)
+            self.assertEqual(resp.headers.get("Access-Control-Allow-Origin"), public_origin)
+            self.assertEqual(resp.headers.get("Vary"), "Origin")
+
+        req_local = urllib.request.Request(self.server_url)
+        with urllib.request.urlopen(req_local) as resp:
+            self.assertEqual(resp.status, 200)
+            self.assertEqual(resp.headers.get("Access-Control-Allow-Origin"), "http://127.0.0.1")
 
 
 if __name__ == "__main__":

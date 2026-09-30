@@ -1,11 +1,13 @@
-"""Cloudflare Quick Tunnel integration for LOCLX v2.4.6."""
+"""Cloudflare Quick Tunnel integration for LOCLX v2.4.7."""
 
 from __future__ import annotations
 
 import os
+import queue
 import re
 import shutil
 import subprocess
+import threading
 import time
 from typing import Optional, Tuple
 
@@ -50,31 +52,75 @@ def start_cloudflare_tunnel(port: int, timeout: float = 20.0) -> Tuple[subproces
     except Exception as exc:
         raise RuntimeError(f"Failed to execute cloudflared: {exc}")
 
+    output_queue: queue.Queue[Optional[str]] = queue.Queue()
+
+    def _enqueue_output(stream, q):
+        try:
+            for line in iter(stream.readline, ""):
+                if line:
+                    q.put(line)
+        except Exception:
+            pass
+        finally:
+            q.put(None)
+
+    reader_thread = threading.Thread(
+        target=_enqueue_output,
+        args=(proc.stdout, output_queue),
+        daemon=True,
+    )
+    reader_thread.start()
+
     url_regex = re.compile(r"https://[a-zA-Z0-9-]+\.trycloudflare\.com")
     start_time = time.time()
     found_url: Optional[str] = None
+    captured_lines: list[str] = []
 
     while time.time() - start_time < timeout:
-        if proc.poll() is not None:
+        if proc.poll() is not None and output_queue.empty():
             break
 
-        line = proc.stdout.readline() if proc.stdout else ""
-        if not line:
-            time.sleep(0.1)
+        try:
+            line = output_queue.get(timeout=0.1)
+        except queue.Empty:
             continue
 
+        if line is None:
+            break
+
+        captured_lines.append(line.rstrip())
         match = url_regex.search(line)
         if match:
             found_url = match.group(0)
             break
 
     if not found_url:
-        proc.kill()
-        proc.wait()
-        raise RuntimeError(
-            "Could not parse Cloudflare quick tunnel URL within timeout.\n"
-            "Ensure outbound network connection is available."
-        )
+        try:
+            proc.terminate()
+            proc.wait(timeout=2.0)
+        except Exception:
+            try:
+                proc.kill()
+            except Exception:
+                pass
+
+        diag = ""
+        if captured_lines:
+            diag_str = "\n".join(f"    {l}" for l in captured_lines[-5:])
+            diag = f"\n[-] Recent output:\n{diag_str}"
+
+        if proc.poll() is not None:
+            msg = (
+                f"[-] cloudflared exited before producing a public URL (exit code {proc.returncode}).{diag}\n"
+                f"[-] Check command manually: cloudflared tunnel --url http://127.0.0.1:{port}"
+            )
+        else:
+            msg = (
+                f"[-] Cloudflare tunnel startup timed out after {timeout:.0f}s.{diag}\n"
+                f"[-] Check command manually: cloudflared tunnel --url http://127.0.0.1:{port}"
+            )
+
+        raise RuntimeError(msg)
 
     validated = validate_public_url(found_url)
     return proc, validated

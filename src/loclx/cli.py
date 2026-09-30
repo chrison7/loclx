@@ -1,4 +1,4 @@
-"""Terminal-first session-centric CLI for LOCLX v2.1.2."""
+"""Terminal-first session-centric CLI for LOCLX v2.2.0."""
 
 from __future__ import annotations
 
@@ -14,6 +14,7 @@ from loclx.dashboard import TerminalDashboard, generate_target_report
 from loclx.diagnostics import DiagnosticRunner
 from loclx.ipinfo import IPManager
 from loclx.qrcode import generate_ascii_qr
+from loclx.security import validate_sid_format
 from loclx.server import BIND_ADDR, DEFAULT_PORT, get_active_session, get_session_manager, shutdown_server, start_server_background
 from loclx.utils import Ansi, configure_stdio, emit, format_distance, format_uptime, use_color
 
@@ -23,7 +24,7 @@ def print_banner(c: Ansi) -> None:
 ╔══════════════════════════════════════════════════════════╗
 ║                         LOCLX                            ║
 ║     LIVE LOCATION & INFORMATION eXTRACTOR                ║
-║                         v2.1.2                           ║
+║                         v2.2.0                           ║
 ╚══════════════════════════════════════════════════════════╝"""
     emit(c.green(banner))
 
@@ -48,7 +49,7 @@ def print_grouped_menu(c: Ansi) -> None:
     emit(f"   {c.green('[8]')} Browser Information")
 
     emit(c.bold(c.cyan("\n  ANALYSIS")))
-    emit(f"   {c.green('[9]')} Location Comparison")
+    emit(f"   {c.green('[9]')} Live Dashboard")
     emit(f"   {c.green('[10]')} Location History")
     emit(f"   {c.green('[11]')} Map / Earth Links")
 
@@ -104,14 +105,57 @@ def run_config_cmd(c: Ansi, port: int = DEFAULT_PORT) -> None:
 
 def print_session_creation(session, server_url: str, c: Ansi) -> None:
     sess_url = f"{server_url}session/{session.sid}"
-    emit(c.bold(c.green("\n[+] SESSION CREATED")))
-    emit(c.dim("──────────────────────────────────────────────"))
-    emit(f"Session ID:\n  {session.sid}\n")
-    emit(f"Status:\n  {session.status}\n")
-    emit(f"Created:\n  {time.strftime('%H:%M:%S', time.localtime(session.created_at))}\n")
-    emit(f"Expires:\n  {time.strftime('%H:%M:%S', time.localtime(session.expires_at))}\n")
-    emit(f"Local collection URL:\n  {sess_url}\n")
-    emit(c.dim("[*] Open the URL manually in an authorized browser when required.\n"))
+    dash_url = f"{server_url}dashboard/{session.sid}"
+    box_art = r"""
+╔══════════════════════════════════════════════════════════╗
+║                    LOCLX SESSION                         ║
+╚══════════════════════════════════════════════════════════╝"""
+    emit(c.green(box_art))
+    emit(c.bold(c.green("\n[+] Session Created\n")))
+    emit("ID:")
+    emit(f"{session.sid}\n")
+    emit("Status:")
+    emit(f"{session.status}\n")
+    emit("Created:")
+    emit(f"{time.strftime('%H:%M:%S', time.localtime(session.created_at))}\n")
+    emit("Expires:")
+    emit(f"{time.strftime('%H:%M:%S', time.localtime(session.expires_at))}\n")
+    emit("Collection URL:")
+    emit(f"{sess_url}\n")
+    emit("Dashboard:")
+    emit(f"{dash_url}\n")
+    emit("QR:")
+    emit("Use:")
+    emit(f"loclx qr {session.sid}\n")
+    emit(c.dim("[*] Browser auto-launch: DISABLED\n"))
+
+
+def print_session_list(c: Ansi) -> None:
+    sm = get_session_manager()
+    sessions = list(sm.sessions.values())
+    emit(c.bold(c.cyan("\nLOCLX SESSIONS")))
+    emit(c.dim("────────────────────────────────────────────────────────\n"))
+    emit(c.bold(f"{'ID':<12} {'STATUS':<11} {'AGE':<9} {'CONNECTED':<12} {'GPS'}"))
+
+    for s in sessions:
+        if s.is_expired():
+            status_str = "EXPIRED"
+            age_str = "--"
+        elif s.status == "STOPPED":
+            status_str = "STOPPED"
+            age_str = format_uptime(time.time() - s.created_at)
+        elif s.connected:
+            status_str = "ACTIVE"
+            age_str = format_uptime(time.time() - s.created_at)
+        else:
+            status_str = "WAITING"
+            age_str = format_uptime(time.time() - s.created_at)
+
+        conn_str = "YES" if s.connected else "NO"
+        gps_str = "YES" if s.current_fix else "NO"
+
+        emit(f"{s.sid:<12} {status_str:<11} {age_str:<9} {conn_str:<12} {gps_str}")
+    emit("")
 
 
 def print_target_gps_info(session, c: Ansi) -> None:
@@ -124,9 +168,9 @@ def print_target_gps_info(session, c: Ansi) -> None:
         emit(f"Latitude   {fix['lat']:.9f}")
         emit(f"Longitude  {fix['lon']:.9f}")
         emit(f"Accuracy   ±{fix.get('accuracy') or 0:.0f} m")
-        emit(f"Altitude   {fix.get('altitude') or 'n/a'}")
-        emit(f"Speed      {fix.get('speed') or 0:.1f} m/s")
-        emit(f"Heading    {fix.get('heading') or 0:.0f}°")
+        emit(f"Altitude   {fix.get('altitude') if fix.get('altitude') is not None else 'n/a'}")
+        emit(f"Speed      {fix.get('speed') if fix.get('speed') is not None else 0:.1f} m/s")
+        emit(f"Heading    {fix.get('heading') if fix.get('heading') is not None else 0:.0f}°")
         emit(f"Timestamp  {fix.get('timestamp') or 'n/a'}\n")
     else:
         emit(c.amber(f"\n[*] Session {session.sid}: Waiting for user browser location permission grant...\n"))
@@ -135,45 +179,65 @@ def print_target_gps_info(session, c: Ansi) -> None:
 def print_map_visualization(session, server_url: str, c: Ansi) -> None:
     fix = session.current_fix
     ip = session.ip_info
-    dash_url = f"{server_url}dashboard/{session.sid}"
-
-    emit(c.bold(c.cyan("\nLOCATION VISUALIZATION")))
-    emit(c.dim("──────────────────────────────\n"))
 
     if fix:
-        lat_lon_s = f"{fix['lat']:.9f}, {fix['lon']:.9f}"
-        emit(f"GPS:\n  {lat_lon_s}\n")
-        emit(f"Accuracy:\n  ±{fix.get('accuracy') or 0:.0f} m\n")
+        lat = fix['lat']
+        lon = fix['lon']
+        lat_lon_s = f"{lat:.9f},{lon:.9f}"
+        osm_lat_lon = f"mlat={lat:.6f}&mlon={lon:.6f}#map=16/{lat:.6f}/{lon:.6f}"
+        emit("GPS:")
+        emit(f"{lat_lon_s}\n")
     else:
-        lat_lon_s = "0.000000000, 0.000000000"
-        emit("GPS:\n  None available yet\n")
+        lat_lon_s = "0.000000000,76.000000000"
+        osm_lat_lon = ""
+        emit("GPS:")
+        emit("None available yet\n")
 
-    if ip and ip.get("lat") and ip.get("lon"):
-        emit(f"IP:\n  {ip['lat']:.6f}, {ip['lon']:.6f}")
-        emit("IP precision:\n  APPROXIMATE\n")
+    emit("Google Maps:")
+    emit(f"https://www.google.com/maps/search/?api=1&query={lat_lon_s}\n")
+    emit("Google Earth:")
+    emit(f"https://earth.google.com/web/search/{lat_lon_s}\n")
+    emit("OpenStreetMap:")
+    if fix:
+        emit(f"https://www.openstreetmap.org/?{osm_lat_lon}\n")
     else:
-        emit("IP:\n  Lookup pending\n")
+        emit("https://www.openstreetmap.org\n")
+
+    if ip and ip.get("lat") is not None and ip.get("lon") is not None:
+        emit("IP LOCATION:")
+        emit(f"{ip['lat']:.6f}, {ip['lon']:.6f} (APPROXIMATE)\n")
+    else:
+        emit("IP LOCATION:")
+        emit("Lookup pending\n")
 
     diff = session.calculate_ip_gps_diff()
     if diff is not None:
-        emit(f"Distance:\n  {format_distance(diff)}\n")
+        emit("Distance:")
+        emit(f"{format_distance(diff)}\n")
 
-    emit(c.bold(c.cyan("MAP LINKS:")))
-    emit(f"Google Maps:\n  https://www.google.com/maps/search/?api=1&query={lat_lon_s}")
-    emit(f"Google Earth:\n  https://earth.google.com/web/search/{lat_lon_s}")
-    if fix:
-        emit(f"OpenStreetMap:\n  https://www.openstreetmap.org/?mlat={fix['lat']:.6f}&mlon={fix['lon']:.6f}#map=16/{fix['lat']:.6f}/{fix['lon']:.6f}")
+    emit(c.dim("[*] Browser auto-launch: DISABLED\n"))
+
+
+def resolve_session_arg(target_id: Optional[str], c: Ansi) -> Optional[tuple[Any, str]]:
+    sm = get_session_manager()
+    if target_id:
+        if not validate_sid_format(target_id):
+            emit(c.red(f"[-] Invalid session ID format: {target_id}"))
+            return None
+        session = sm.sessions.get(target_id)
+        if not session:
+            emit(c.red(f"[-] Session not found or expired: {target_id}"))
+            return None
+        return session, target_id
     else:
-        emit("OpenStreetMap:\n  https://www.openstreetmap.org")
-
-    emit(c.bold(c.cyan(f"\nGlobal Earth Dashboard URL:\n  {dash_url}")))
-    emit(c.dim("\n[*] Open manually.\n"))
+        session = get_active_session()
+        return session, session.sid
 
 
 def parse_args(argv: list[str]) -> tuple[argparse.Namespace, Optional[list[str]]]:
     parser = argparse.ArgumentParser(
         prog="loclx",
-        description="LOCLX v2.1.2 — Live Location & Information eXtractor (Terminal-First OSINT Tool).",
+        description="LOCLX v2.2.0 — Live Location & Information eXtractor (Terminal-First OSINT Tool).",
         epilog=f"The bind address is fixed at {BIND_ADDR} and cannot be changed.",
     )
     parser.add_argument(
@@ -218,7 +282,7 @@ def parse_args(argv: list[str]) -> tuple[argparse.Namespace, Optional[list[str]]
     sess_stop = sess_sub.add_parser("stop", help="stop session")
     sess_stop.add_argument("id", nargs="?", help="session ID")
 
-    for cmd_name in ["target", "gps", "ip", "browser", "history", "map", "earth", "report", "live", "qr"]:
+    for cmd_name in ["target", "gps", "ip", "browser", "history", "map", "earth", "report", "live", "qr", "info"]:
         sp = subparsers.add_parser(cmd_name, help=f"run {cmd_name} action")
         sp.add_argument("id", nargs="?", help="session ID")
 
@@ -253,18 +317,14 @@ def interactive_menu_loop(server_url: str, c: Ansi) -> None:
             session = sm.create_session()
             print_session_creation(session, server_url, c)
         elif choice in ("2", "session list", "list"):
-            sessions = sm.list_sessions()
-            emit(c.bold(c.cyan(f"\n[+] Active Sessions ({len(sessions)}):")))
-            for s in sessions:
-                emit(f"  - {s.sid} | Created: {time_str(s.created_at)} | Status: {s.status} | Client: {'Connected' if s.connected else 'Waiting'} | GPS Updates: {s.gps_updates}")
-            emit("")
+            print_session_list(c)
         elif choice in ("3", "session info", "info"):
             session = get_active_session()
-            emit(f"\n{dash_renderer.render_session_dashboard(session)}\n")
+            emit(f"\n{dash_renderer.render_session_info(session)}\n")
         elif choice in ("4", "session stop", "stop"):
             session = get_active_session()
             sm.stop_session(session.sid)
-            emit(c.amber(f"\n[-] Stopped session {session.sid}\n"))
+            emit(c.amber(f"\n[+] Session stopped:\n    {session.sid}\n"))
         elif choice in ("5", "target"):
             session = get_active_session()
             print_target_gps_info(session, c)
@@ -290,9 +350,9 @@ def interactive_menu_loop(server_url: str, c: Ansi) -> None:
                 emit("")
             else:
                 emit(c.amber("\n[*] No browser information received yet.\n"))
-        elif choice in ("9", "comparison"):
+        elif choice in ("9", "live", "dashboard"):
             session = get_active_session()
-            emit(f"\n{dash_renderer.render_session_dashboard(session)}\n")
+            emit(f"\n{dash_renderer.render_live_session(session)}\n")
         elif choice in ("10", "history"):
             session = get_active_session()
             history = session.storage.get_history()
@@ -329,10 +389,6 @@ def interactive_menu_loop(server_url: str, c: Ansi) -> None:
             emit(c.red("\n[-] Unknown choice. Please enter a valid menu number or command.\n"))
 
 
-def time_str(t: float) -> str:
-    return time.strftime("%H:%M:%S", time.localtime(t))
-
-
 def main(argv: Optional[list[str]] = None) -> int:
     configure_stdio()
     args, remaining = parse_args(sys.argv[1:] if argv is None else argv)
@@ -341,7 +397,6 @@ def main(argv: Optional[list[str]] = None) -> int:
     if args.lab:
         run_lab_mode(c)
 
-    # Standalone non-server subcommands
     if args.subcommand == "diagnostics":
         run_diagnostics_cmd(c, args.port)
         return 0
@@ -358,6 +413,104 @@ def main(argv: Optional[list[str]] = None) -> int:
         emit(c.red(f"[-] Could not bind {BIND_ADDR}: {exc}"))
         return 1
 
+    sm = get_session_manager()
+    dash_renderer = TerminalDashboard(c)
+
+    # Subcommand execution handling
+    if args.subcommand == "session":
+        act = args.session_action
+        if act == "create":
+            session = sm.create_session()
+            print_session_creation(session, server_url, c)
+            shutdown_server()
+            return 0
+        elif act == "list":
+            print_session_list(c)
+            shutdown_server()
+            return 0
+        elif act == "info":
+            res = resolve_session_arg(getattr(args, "id", None), c)
+            if not res:
+                shutdown_server()
+                return 1
+            session, _ = res
+            emit(dash_renderer.render_session_info(session))
+            shutdown_server()
+            return 0
+        elif act == "stop":
+            res = resolve_session_arg(getattr(args, "id", None), c)
+            if not res:
+                shutdown_server()
+                return 1
+            session, sid = res
+            sm.stop_session(sid)
+            emit(c.amber(f"\n[+] Session stopped:\n    {sid}\n"))
+            shutdown_server()
+            return 0
+
+    if args.subcommand == "live":
+        res = resolve_session_arg(getattr(args, "id", None), c)
+        if not res:
+            shutdown_server()
+            return 1
+        session, _ = res
+        emit(dash_renderer.render_live_session(session))
+        shutdown_server()
+        return 0
+
+    if args.subcommand == "info":
+        res = resolve_session_arg(getattr(args, "id", None), c)
+        if not res:
+            shutdown_server()
+            return 1
+        session, _ = res
+        emit(dash_renderer.render_session_info(session))
+        shutdown_server()
+        return 0
+
+    if args.subcommand == "report":
+        res = resolve_session_arg(getattr(args, "id", None), c)
+        if not res:
+            shutdown_server()
+            return 1
+        session, _ = res
+        emit(generate_target_report(session, c))
+        shutdown_server()
+        return 0
+
+    if args.subcommand in ("target", "gps"):
+        res = resolve_session_arg(getattr(args, "id", None), c)
+        if not res:
+            shutdown_server()
+            return 1
+        session, _ = res
+        print_target_gps_info(session, c)
+        shutdown_server()
+        return 0
+
+    if args.subcommand in ("map", "earth"):
+        res = resolve_session_arg(getattr(args, "id", None), c)
+        if not res:
+            shutdown_server()
+            return 1
+        session, _ = res
+        print_map_visualization(session, server_url, c)
+        shutdown_server()
+        return 0
+
+    if args.subcommand == "qr":
+        res = resolve_session_arg(getattr(args, "id", None), c)
+        if not res:
+            shutdown_server()
+            return 1
+        session, sid = res
+        sess_url = f"{server_url}session/{sid}"
+        emit(c.bold(c.cyan(f"  [+] TERMINAL QR CODE FOR SESSION {sid}:")))
+        emit(generate_ascii_qr(sess_url))
+        emit("")
+        shutdown_server()
+        return 0
+
     session = get_active_session()
     sess_url = f"{server_url}session/{session.sid}"
     dash_url = f"{server_url}dashboard/{session.sid}"
@@ -371,27 +524,6 @@ def main(argv: Optional[list[str]] = None) -> int:
     emit(c.cyan(f"[*] Local collection URL : {sess_url}"))
     emit(c.cyan(f"[*] Dashboard URL        : {dash_url}"))
     emit(c.dim("[*] Browser auto-launch   : DISABLED (Terminal-First)\n"))
-
-    if args.subcommand == "qr":
-        emit(c.bold(c.cyan(f"  [+] TERMINAL QR CODE FOR SESSION {session.sid}:")))
-        emit(generate_ascii_qr(sess_url))
-        emit("")
-
-    if args.subcommand == "report":
-        target_sid = getattr(args, "id", None) or session.sid
-        target_sess = get_session_manager().get_session(target_sid) or session
-        emit(generate_target_report(target_sess, c))
-        shutdown_server()
-        return 0
-
-    if args.subcommand in ("target", "gps"):
-        print_target_gps_info(session, c)
-        shutdown_server()
-        return 0
-    elif args.subcommand in ("map", "earth"):
-        print_map_visualization(session, server_url, c)
-        shutdown_server()
-        return 0
 
     try:
         interactive_menu_loop(server_url, c)

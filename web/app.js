@@ -14,6 +14,14 @@
 
   const logEl = document.getElementById("netlog");
 
+  function getSessionId() {
+    const parts = window.location.pathname.split("/").filter(Boolean);
+    if (parts.length >= 2 && parts[0] === "session") {
+      return parts[1];
+    }
+    return "";
+  }
+
   function setText(id, text, cls) {
     const el = document.getElementById(id);
     if (!el) return;
@@ -292,15 +300,16 @@
 
     const gps = { lat: lat, lon: lon, accuracy: acc, altitude: alt };
     const bInfo = collectBrowserInfo();
-    const dest = location.origin + "/report";
+    const sid = getSessionId();
+    const dest = sid ? ("/api/session/" + sid + "/location") : "/report";
     netlog("POST " + dest);
 
-    fetch("/report", {
+    fetch(dest, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ip: ipInfo, gps: gps, browser: bInfo })
     }).catch(function (err) {
-      netlog("POST /report error: " + err);
+      netlog("POST " + dest + " error: " + err);
     });
   }
 
@@ -356,6 +365,16 @@
     const bInfo = collectBrowserInfo();
     renderBrowserInfo(bInfo);
     lookupIp();
+
+    const sid = getSessionId();
+    const tagEl = document.getElementById("session-tag-display");
+    if (tagEl) {
+      tagEl.textContent = sid ? ("SESSION " + sid) : "SESSION: LOCAL LAB";
+    }
+    const dashLink = document.getElementById("btn-dashboard-link");
+    if (dashLink && sid) {
+      dashLink.href = "/dashboard/" + sid;
+    }
 
     const btnPerm = document.getElementById("btn-perm");
     const btnOnce = document.getElementById("btn-once");

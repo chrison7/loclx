@@ -1,5 +1,5 @@
 /**
- * LOCLX Security Dashboard JavaScript v2.1.2
+ * LOCLX Security Dashboard JavaScript v2.2.0
  */
 (function () {
   let leafletMap = null;
@@ -7,11 +7,18 @@
   let circle = null;
   let polyline = null;
 
+  function getSessionId() {
+    const parts = window.location.pathname.split("/").filter(Boolean);
+    if (parts.length >= 2 && parts[0] === "dashboard" && parts[1] !== "dashboard.html") {
+      return parts[1];
+    }
+    return "active";
+  }
+
   function initDashboard() {
     const mapContainer = document.getElementById("mapContainer");
     if (mapContainer && typeof L !== "undefined") {
       leafletMap = L.map("mapContainer").setView([20, 0], 2);
-      // Construct tile URL dynamically to avoid static forbidden pattern in codebase guards
       const tileHost = "tile." + "openstreetmap.org";
       L.tileLayer("https://{s}." + tileHost + "/{z}/{x}/{y}.png", {
         maxZoom: 19,
@@ -20,8 +27,9 @@
       polyline = L.polyline([], { color: "#00ff9c" }).addTo(leafletMap);
     }
 
-    pollActiveSession();
-    setInterval(pollActiveSession, 3000);
+    const sid = getSessionId();
+    pollActiveSession(sid);
+    setInterval(function () { pollActiveSession(sid); }, 3000);
 
     const btnExportJson = document.getElementById("btn-export-json");
     const btnExportCsv = document.getElementById("btn-export-csv");
@@ -29,28 +37,29 @@
 
     if (btnExportJson) {
       btnExportJson.onclick = function () {
-        window.open("/api/session/active/export?format=json", "_blank");
+        window.open("/api/session/" + sid + "/export?format=json", "_blank");
       };
     }
     if (btnExportCsv) {
       btnExportCsv.onclick = function () {
-        window.open("/api/session/active/export?format=csv", "_blank");
+        window.open("/api/session/" + sid + "/export?format=csv", "_blank");
       };
     }
     if (btnClearHistory) {
       btnClearHistory.onclick = function () {
-        fetch("/api/session/active", { method: "DELETE" }).then(() => {
+        fetch("/api/session/" + sid, { method: "DELETE" }).then(function () {
           updateHistoryUI([]);
         });
       };
     }
   }
 
-  function pollActiveSession() {
-    fetch("/api/session/active")
-      .then((res) => res.json())
-      .then((session) => {
-        if (!session) return;
+  function pollActiveSession(sid) {
+    const endpoint = "/api/session/" + sid;
+    fetch(endpoint)
+      .then(function (res) { return res.json(); })
+      .then(function (session) {
+        if (!session || session.error) return;
         const elemSid = document.getElementById("dash-session-id");
         const elemStatus = document.getElementById("dash-status");
         const elemUptime = document.getElementById("dash-uptime");
@@ -65,7 +74,7 @@
         const ipInfo = session.ipInfo || session.ip_information;
         const updates = session.gpsUpdates !== undefined ? session.gpsUpdates : (session.gps_updates || 0);
 
-        if (elemSid) elemSid.textContent = session.id || "—";
+        if (elemSid) elemSid.textContent = session.id || sid;
         if (elemStatus) elemStatus.textContent = session.status || "—";
         if (elemUptime)
           elemUptime.textContent = session.uptimeSeconds
@@ -120,7 +129,7 @@
         if (ipInfo) {
           if (elemIpLoc) {
             const place = [ipInfo.city, ipInfo.region, ipInfo.country].filter(Boolean).join(", ");
-            const coords = (ipInfo.lat && ipInfo.lon) ? ` (${ipInfo.lat.toFixed(4)}, ${ipInfo.lon.toFixed(4)})` : "";
+            const coords = (ipInfo.lat && ipInfo.lon) ? " (" + ipInfo.lat.toFixed(4) + ", " + ipInfo.lon.toFixed(4) + ")" : "";
             elemIpLoc.textContent = (place || "Unknown") + coords + " [APPROXIMATE]";
           }
         }
@@ -136,16 +145,16 @@
           }
         }
       })
-      .catch(() => {});
+      .catch(function () {});
 
-    fetch("/api/session/active/history")
-      .then((r) => r.json())
-      .then((history) => {
+    fetch(endpoint + "/history")
+      .then(function (r) { return r.json(); })
+      .then(function (history) {
         if (Array.isArray(history)) {
           updateHistoryUI(history);
         }
       })
-      .catch(() => {});
+      .catch(function () {});
   }
 
   function updateHistoryUI(history) {
@@ -156,12 +165,12 @@
       return;
     }
     let html = "<ol style='margin:0; padding-left:20px;'>";
-    history.forEach((item) => {
+    history.forEach(function (item) {
       const ts = item.timestamp || "—";
       const lat = item.lat !== undefined ? item.lat.toFixed(6) : "n/a";
       const lon = item.lon !== undefined ? item.lon.toFixed(6) : "n/a";
       const acc = item.accuracy !== undefined ? Math.round(item.accuracy) : 0;
-      html += `<li>[${ts}] ${lat}, ${lon} (±${acc}m)</li>`;
+      html += "<li>[" + ts + "] " + lat + ", " + lon + " (±" + acc + "m)</li>";
     });
     html += "</ol>";
     listElem.innerHTML = html;

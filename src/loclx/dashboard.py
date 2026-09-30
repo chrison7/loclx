@@ -113,6 +113,124 @@ class TerminalDashboard:
         lines.append(c.green(bot_border))
         return "\n".join(lines)
 
+    def render_session_info(self, session: Session) -> str:
+        d = session.to_dict()
+        c = self.c
+        sep = c.dim("────────────────────────────")
+
+        fix = d.get("currentFix") or {}
+        ip = d.get("ipInfo") or {}
+        b = d.get("browserInfo") or {}
+
+        status_str = d['status']
+        if session.status == "ACTIVE" and not session.connected:
+            status_str = "WAITING"
+
+        lat_val = f"{fix['lat']:.9f}" if fix.get("lat") is not None else "—"
+        lon_val = f"{fix['lon']:.9f}" if fix.get("lon") is not None else "—"
+        acc_val = format_accuracy(fix.get("accuracy")) if fix.get("accuracy") is not None else "—"
+        alt_val = str(fix.get("altitude")) if fix.get("altitude") is not None else "—"
+        spd_val = f"{fix['speed']:.1f} m/s" if fix.get("speed") is not None else "—"
+        hdg_val = f"{fix['heading']:.0f}°" if fix.get("heading") is not None else "—"
+
+        lines = [
+            c.bold(c.cyan("SESSION")),
+            sep,
+            f"{'ID':<12}: {d['id']}",
+            f"{'STATUS':<12}: {status_str}",
+            f"{'CREATED':<12}: {d['created']}",
+            f"{'EXPIRES':<12}: {time_str_from_ts(d['expires_at'])}",
+            f"{'FIRST SEEN':<12}: {d.get('first_seen') or '—'}",
+            f"{'LAST SEEN':<12}: {d.get('last_seen') or '—'}",
+            f"{'CLIENT IP':<12}: {d.get('client_ip') or '—'}",
+            f"{'CONNECTED':<12}: {'YES' if d.get('connected') else 'NO'}",
+            f"{'GPS UPDATES':<12}: {d['gpsUpdates']}",
+            "",
+            c.bold(c.cyan("GPS")),
+            sep,
+            f"{'Latitude':<12}: {lat_val}",
+            f"{'Longitude':<12}: {lon_val}",
+            f"{'Accuracy':<12}: {acc_val}",
+            f"{'Altitude':<12}: {alt_val}",
+            f"{'Speed':<12}: {spd_val}",
+            f"{'Heading':<12}: {hdg_val}",
+            "",
+            c.bold(c.cyan("NETWORK")),
+            sep,
+            f"{'Public IP':<12}: {ip.get('ip') or '—'}",
+            f"{'Country':<12}: {ip.get('country') or '—'}",
+            f"{'Region':<12}: {ip.get('region') or '—'}",
+            f"{'City':<12}: {ip.get('city') or '—'}",
+            f"{'ISP':<12}: {ip.get('isp') or '—'}",
+            f"{'ASN':<12}: {ip.get('asn') or '—'}",
+            "",
+            c.bold(c.cyan("BROWSER")),
+            sep,
+            f"{'Browser':<12}: {b.get('browser') or '—'}",
+            f"{'Version':<12}: {b.get('browserVersion') or '—'}",
+            f"{'Platform':<12}: {b.get('platform') or '—'}",
+            f"{'Screen':<12}: {b.get('screenResolution') or '—'}",
+            f"{'CPU':<12}: {b.get('cpuCores') or '—'}",
+            f"{'Timezone':<12}: {b.get('timezone') or '—'}",
+            f"{'Language':<12}: {b.get('language') or '—'}",
+        ]
+        return "\n".join(lines)
+
+    def render_live_session(self, session: Session) -> str:
+        d = session.to_dict()
+        c = self.c
+        width = 54
+        inner = width - 4
+
+        def line(text: str = "") -> str:
+            val = text[:inner]
+            return "║ " + val.ljust(inner) + " ║"
+
+        status_label = "● ACTIVE" if session.connected else "○ WAITING"
+        if session.status == "STOPPED":
+            status_label = "■ STOPPED"
+        elif session.is_expired():
+            status_label = "× EXPIRED"
+
+        top_border = "╔" + "═" * (width - 2) + "╗"
+        div_border = "╠" + "═" * (width - 2) + "╣"
+        bot_border = "╚" + "═" * (width - 2) + "╝"
+
+        fix = d.get("currentFix") or {}
+        ip = d.get("ipInfo") or {}
+
+        lat_s = f"{fix.get('lat'):.9f}" if fix.get("lat") is not None else "—"
+        lon_s = f"{fix.get('lon'):.9f}" if fix.get("lon") is not None else "—"
+        acc_s = f"±{fix.get('accuracy'):.0f} m" if fix.get("accuracy") is not None else "—"
+
+        lines = [
+            c.green(top_border),
+            c.bold(c.cyan(line("LOCLX LIVE SESSION"))),
+            c.green(div_border),
+            line(f"Session    {d['id']:<16} {status_label}"),
+            line(f"Age        {format_uptime(d['uptimeSeconds'])}"),
+            c.green(div_border),
+            c.bold(c.green(line("GPS"))),
+            line(f"Latitude   {lat_s}"),
+            line(f"Longitude  {lon_s}"),
+            line(f"Accuracy   {acc_s}"),
+            line(f"Updates    {d['gpsUpdates']}"),
+            c.green(div_border),
+            c.bold(c.cyan(line("NETWORK — APPROXIMATE"))),
+            line(f"IP         {ip.get('ip') or '—'}"),
+            line(f"City       {ip.get('city') or '—'}"),
+            line(f"ISP        {ip.get('isp') or '—'}"),
+            line(f"ASN        {ip.get('asn') or '—'}"),
+            c.green(bot_border),
+        ]
+        return "\n".join(lines)
+
+
+def time_str_from_ts(ts: float) -> str:
+    import time
+    return time.strftime("%H:%M:%S", time.localtime(ts))
+
+
 
 def generate_target_report(session: Session, c: Optional[Ansi] = None) -> str:
     """Generate a comprehensive Hound-style target intelligence report."""

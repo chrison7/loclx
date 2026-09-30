@@ -1,4 +1,4 @@
-"""HTTP API Server and Static Web Asset Server for LOCLX v2.1.2."""
+"""HTTP API Server and Static Web Asset Server for LOCLX v2.2.0."""
 
 from __future__ import annotations
 
@@ -15,7 +15,13 @@ from loclx.dashboard import generate_target_report
 from loclx.diagnostics import DiagnosticRunner
 from loclx.ipinfo import IPManager
 from loclx.qrcode import generate_ascii_qr
-from loclx.security import MAX_REQUEST_BODY, RateLimiter, sanitize_input
+from loclx.security import (
+    MAX_REQUEST_BODY,
+    RateLimiter,
+    sanitize_input,
+    validate_gps_payload,
+    validate_sid_format,
+)
 from loclx.sessions import Session, SessionManager
 from loclx.utils import Ansi, emit, format_distance, format_uptime
 
@@ -80,6 +86,23 @@ class LabHandler(BaseHTTPRequestHandler):
         else:
             self.send_error(404, "File not found")
 
+    def resolve_session(self, sid: str) -> tuple[Optional[Session], int, str]:
+        """Strict session resolution by ID. Returns (session, status_code, error_message)."""
+        if not validate_sid_format(sid):
+            return None, 400, "Invalid session ID format"
+
+        session = _session_manager.sessions.get(sid)
+        if not session:
+            return None, 404, "Session not found"
+
+        if session.status == "STOPPED":
+            return session, 409, "Session stopped"
+
+        if session.is_expired():
+            return session, 410, "Session expired"
+
+        return session, 200, "OK"
+
     def do_OPTIONS(self) -> None:
         self.send_response(204)
         self.send_cors_headers()
@@ -97,26 +120,45 @@ class LabHandler(BaseHTTPRequestHandler):
             session = get_active_session()
             self._notify_connection(session, client_ip)
             self.serve_file("index.html", "text/html; charset=utf-8")
+
         elif url_path.startswith("/session/"):
             parts = url_path.strip("/").split("/")
-            sid = parts[1] if len(parts) >= 2 else ""
-            session = _session_manager.get_session(sid) or get_active_session()
-            self._notify_connection(session, client_ip)
-            self.serve_file("index.html", "text/html; charset=utf-8")
-        elif url_path == "/dashboard" or url_path == "/dashboard.html" or url_path.startswith("/dashboard/"):
+            if len(parts) >= 2 and parts[1]:
+                sid = parts[1]
+                session, code, msg = self.resolve_session(sid)
+                if not session or code not in (200, 409):
+                    self.send_json(code, {"error": msg})
+                    return
+                self._notify_connection(session, client_ip)
+                self.serve_file("index.html", "text/html; charset=utf-8")
+            else:
+                self.send_json(400, {"error": "Session ID required"})
+
+        elif url_path.startswith("/dashboard"):
+            parts = url_path.strip("/").split("/")
+            if len(parts) >= 2 and parts[1] and parts[1] != "dashboard.html":
+                sid = parts[1]
+                session, code, msg = self.resolve_session(sid)
+                if not session:
+                    self.send_json(code, {"error": msg})
+                    return
             self.serve_file("dashboard.html", "text/html; charset=utf-8")
+
         elif url_path == "/app.js":
             self.serve_file("app.js", "application/javascript; charset=utf-8")
         elif url_path == "/dashboard.js":
             self.serve_file("dashboard.js", "application/javascript; charset=utf-8")
         elif url_path == "/style.css":
             self.serve_file("style.css", "text/css; charset=utf-8")
+
         elif url_path == "/api/session/active":
             session = get_active_session()
             self.send_json(200, session.to_dict())
+
         elif url_path == "/api/session/active/history":
             session = get_active_session()
             self.send_json(200, session.storage.get_history())
+
         elif url_path.startswith("/api/session/active/export"):
             session = get_active_session()
             fmt = self.path.split("format=")[-1] if "format=" in self.path else "json"
@@ -130,10 +172,12 @@ class LabHandler(BaseHTTPRequestHandler):
                 self.wfile.write(csv_data)
             else:
                 self.send_json(200, session.storage.get_history())
+
         elif url_path == "/api/diagnostics":
             runner = DiagnosticRunner()
             diag = [{"category": c, "item": i, "status": s, "details": d} for c, i, s, d in runner.run_all()]
             self.send_json(200, diag)
+
         elif url_path == "/api/config":
             self.send_json(200, {
                 "version": VERSION,
@@ -142,17 +186,21 @@ class LabHandler(BaseHTTPRequestHandler):
                 "session_ttl": _session_manager.default_timeout,
                 "ip_provider": "auto",
             })
+
         elif url_path.startswith("/api/session/"):
             parts = url_path.strip("/").split("/")
             if len(parts) >= 3 and parts[2]:
                 sid = parts[2]
-                session = _session_manager.get_session(sid)
+                session, code, msg = self.resolve_session(sid)
                 if not session:
-                    self.send_json(404, {"error": "Session not found"})
+                    self.send_json(code, {"error": msg})
                     return
-                if len(parts) == 4 and parts[3] == "history":
+
+                action = parts[3] if len(parts) >= 4 else None
+
+                if action == "history":
                     self.send_json(200, session.storage.get_history())
-                elif len(parts) == 4 and parts[3] == "report":
+                elif action == "report":
                     report = generate_target_report(session, Ansi(False))
                     self.send_response(200)
                     self.send_header("Content-Type", "text/plain; charset=utf-8")
@@ -160,11 +208,11 @@ class LabHandler(BaseHTTPRequestHandler):
                     self.send_cors_headers()
                     self.end_headers()
                     self.wfile.write(report.encode("utf-8"))
-                elif len(parts) == 4 and parts[3] == "qr":
+                elif action == "qr":
                     sess_url = f"http://{BIND_ADDR}:{self.server.server_address[1]}/session/{session.sid}"
                     qr = generate_ascii_qr(sess_url)
                     self.send_json(200, {"id": session.sid, "url": sess_url, "qr": qr})
-                elif len(parts) == 4 and parts[3] == "export":
+                elif action == "export":
                     fmt = self.path.split("format=")[-1] if "format=" in self.path else "json"
                     if fmt == "csv":
                         csv_data = session.storage.export_csv().encode("utf-8")
@@ -176,8 +224,10 @@ class LabHandler(BaseHTTPRequestHandler):
                         self.wfile.write(csv_data)
                     else:
                         self.send_json(200, session.storage.get_history())
-                else:
+                elif action is None:
                     self.send_json(200, session.to_dict())
+                else:
+                    self.send_json(400, {"error": "Invalid action endpoint"})
             else:
                 self.send_json(400, {"error": "Invalid endpoint"})
         else:
@@ -207,25 +257,41 @@ class LabHandler(BaseHTTPRequestHandler):
             session = get_active_session()
             self._handle_location_update(session, payload, client_ip)
             self.send_json(200, {"status": "ok", "sessionId": session.sid})
+
         elif url_path == "/api/session":
             session = _session_manager.create_session()
             self.send_json(201, session.to_dict())
+
         elif url_path.startswith("/api/session/"):
             parts = url_path.strip("/").split("/")
-            if len(parts) >= 3:
+            if len(parts) >= 3 and parts[2]:
                 sid = parts[2]
-                session = _session_manager.get_session(sid)
+                session, code, msg = self.resolve_session(sid)
                 if not session:
-                    self.send_json(404, {"error": "Session not found"})
+                    self.send_json(code, {"error": msg})
                     return
-                if len(parts) == 4 and parts[3] == "location":
+
+                if code != 200:
+                    self.send_json(code, {"error": msg})
+                    return
+
+                action = parts[3] if len(parts) >= 4 else None
+
+                if action == "location":
+                    gps_data = payload.get("gps")
+                    if gps_data and not validate_gps_payload(gps_data):
+                        self.send_json(400, {"error": "Invalid GPS data payload"})
+                        return
                     self._handle_location_update(session, payload, client_ip)
-                    self.send_json(200, {"status": "ok"})
-                elif len(parts) == 4 and parts[3] == "stop":
+                    self.send_json(200, {"status": "ok", "sessionId": session.sid})
+                elif action == "stop":
                     session.stop()
-                    self.send_json(200, {"status": "stopped"})
+                    emit(Ansi(True).amber(f"\n[-] Session stopped: {session.sid}\n"))
+                    self.send_json(200, {"status": "stopped", "sessionId": session.sid})
                 else:
-                    self.send_json(400, {"error": "Invalid endpoint"})
+                    self.send_json(400, {"error": "Invalid action endpoint"})
+            else:
+                self.send_json(400, {"error": "Invalid endpoint"})
         else:
             self.send_error(404, "Not Found")
 
@@ -244,6 +310,9 @@ class LabHandler(BaseHTTPRequestHandler):
             parts = url_path.strip("/").split("/")
             if len(parts) == 3 and parts[2]:
                 sid = parts[2]
+                if not validate_sid_format(sid):
+                    self.send_json(400, {"error": "Invalid session ID format"})
+                    return
                 if _session_manager.delete_session(sid):
                     self.send_json(200, {"status": "deleted", "sessionId": sid})
                 else:
@@ -261,9 +330,9 @@ class LabHandler(BaseHTTPRequestHandler):
             emit(c.green("\n[+] SESSION CONNECTED"))
             emit(c.dim("──────────────────────────────────────────────"))
             emit(c.bold(f"Session : {session.sid}"))
-            emit(f"Client  : connected")
+            emit(f"Client  : {client_ip}")
             emit(f"Time    : {t}")
-            emit(f"IP      : {client_ip}")
+            emit(f"Status  : {session.status}")
             emit(c.dim("──────────────────────────────────────────────\n"))
 
     def _handle_location_update(self, session: Session, payload: dict[str, Any], client_ip: str) -> None:
@@ -275,7 +344,8 @@ class LabHandler(BaseHTTPRequestHandler):
         browser_data = payload.get("browser")
 
         if isinstance(gps_data, dict) and "lat" in gps_data and "lon" in gps_data:
-            session.update_gps(gps_data)
+            if validate_gps_payload(gps_data):
+                session.update_gps(gps_data)
 
         if isinstance(ip_data, dict):
             session.set_ip_info(ip_data)

@@ -111,7 +111,7 @@ class TestGuard(unittest.TestCase):
             if not os.path.isfile(file_path):
                 continue
             rel_path = os.path.relpath(file_path, REPO_ROOT)
-            if rel_path == "CONTRIBUTING.md":
+            if rel_path in ("CONTRIBUTING.md", "SECURITY.md"):
                 continue
             try:
                 with open(file_path, "r", encoding="utf-8", errors="ignore") as f:

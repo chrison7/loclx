@@ -43,6 +43,8 @@ class TestServer(unittest.TestCase):
                     self.assertIn("GEO_FAST_OPTS", body)
                     self.assertIn("GEO_PRECISE_OPTS", body)
                     self.assertIn("startHighAccuracyWatch", body)
+                    self.assertIn("getLocationPermissionState", body)
+                    self.assertIn("enableContinueButton", body)
 
     def test_best_gps_fix_tracking(self):
         sess = self.sm.create_session()

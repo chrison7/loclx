@@ -184,19 +184,53 @@
     startHighAccuracyWatch();
   }
 
-  function geoError(err) {
-    const bInfo = collectBrowserInfo();
-    postPayload({ denied: true, errorCode: err ? err.code : 1, browser: bInfo });
-
-    let msg = "Location access was not granted.";
-    if (err && (err.code === 2 || err.code === 3)) {
-      msg = "Location information is currently unavailable.";
+  async function getLocationPermissionState() {
+    if (!navigator.permissions || !navigator.permissions.query) {
+      return "unknown";
     }
 
-    appendBubble(msg, false);
+    try {
+      const result = await navigator.permissions.query({
+        name: "geolocation"
+      });
+
+      return result.state || "unknown";
+    } catch (e) {
+      return "unknown";
+    }
   }
 
-  function startDemo() {
+  function enableContinueButton() {
+    const btn =
+      document.getElementById("btn-start-demo") ||
+      document.getElementById("btn-continue");
+
+    if (btn) {
+      btn.disabled = false;
+    }
+  }
+
+  function geoError(err) {
+    const bInfo = collectBrowserInfo();
+    const code = err ? err.code : 1;
+    postPayload({ denied: true, errorCode: code, browser: bInfo });
+
+    if (code === 1) {
+      appendBubble("Location permission was denied or blocked.", false);
+    } else if (code === 2) {
+      appendBubble("Chrome could not obtain a location from the device location provider.", false);
+      appendBubble("Make sure Location is enabled on the phone and try again.", false);
+    } else if (code === 3) {
+      appendBubble("Chrome could not obtain a location before the request timed out.", false);
+      appendBubble("Make sure Location is enabled on the phone and try again.", false);
+    } else {
+      appendBubble("Location information is currently unavailable.", false);
+    }
+
+    enableContinueButton();
+  }
+
+  async function startDemo() {
     const btn =
       document.getElementById("btn-start-demo") ||
       document.getElementById("btn-continue");
@@ -209,6 +243,18 @@
 
     if (!navigator.geolocation) {
       appendBubble("Location access was not granted.", false);
+      enableContinueButton();
+      return;
+    }
+
+    const permissionState = await getLocationPermissionState();
+
+    if (permissionState === "denied") {
+      appendBubble(
+        "Location permission is blocked for this site. Allow location access for this site in Chrome settings and try again.",
+        false
+      );
+      enableContinueButton();
       return;
     }
 

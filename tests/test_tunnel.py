@@ -11,6 +11,8 @@ from loclx.tunnel import (
     get_cloudflared_install_instructions,
     is_cloudflared_installed,
     start_cloudflare_tunnel,
+    stop_cloudflare_tunnel,
+    verify_local_server_ready,
 )
 
 
@@ -48,9 +50,21 @@ class TestTunnel(unittest.TestCase):
         result = is_cloudflared_installed()
         self.assertIsInstance(result, bool)
 
+    def test_stop_cloudflare_tunnel_idempotent(self):
+        mock_proc = MagicMock()
+        mock_proc.poll.return_value = None
+        stop_cloudflare_tunnel(mock_proc)
+        mock_proc.terminate.assert_called_once()
+
+        # Calling again on None or finished process must not crash
+        stop_cloudflare_tunnel(None)
+        mock_proc.poll.return_value = 0
+        stop_cloudflare_tunnel(mock_proc)
+
+    @patch("loclx.tunnel.verify_local_server_ready", return_value=True)
     @patch("loclx.tunnel.is_cloudflared_installed", return_value=True)
     @patch("subprocess.Popen")
-    def test_url_appears_quickly(self, mock_popen, mock_installed):
+    def test_url_appears_quickly(self, mock_popen, mock_installed, mock_ready):
         mock_proc = MagicMock()
         mock_proc.poll.return_value = None
         mock_proc.stdout = DummyStream(["2026-10-01 INF https://quick-test.trycloudflare.com\n"])
@@ -59,10 +73,14 @@ class TestTunnel(unittest.TestCase):
         proc, url = start_cloudflare_tunnel(8765, timeout=2.0)
         self.assertEqual(url, "https://quick-test.trycloudflare.com")
         self.assertEqual(proc, mock_proc)
+        mock_popen.assert_called_once()
+        cmd_arg = mock_popen.call_args[0][0]
+        self.assertIn("http://127.0.0.1:8765", cmd_arg)
 
+    @patch("loclx.tunnel.verify_local_server_ready", return_value=True)
     @patch("loclx.tunnel.is_cloudflared_installed", return_value=True)
     @patch("subprocess.Popen")
-    def test_url_appears_after_several_lines(self, mock_popen, mock_installed):
+    def test_url_appears_after_several_lines(self, mock_popen, mock_installed, mock_ready):
         mock_proc = MagicMock()
         mock_proc.poll.return_value = None
         mock_proc.stdout = DummyStream([
@@ -75,9 +93,10 @@ class TestTunnel(unittest.TestCase):
         proc, url = start_cloudflare_tunnel(8765, timeout=2.0)
         self.assertEqual(url, "https://delayed-url.trycloudflare.com")
 
+    @patch("loclx.tunnel.verify_local_server_ready", return_value=True)
     @patch("loclx.tunnel.is_cloudflared_installed", return_value=True)
     @patch("subprocess.Popen")
-    def test_cloudflared_produces_no_url(self, mock_popen, mock_installed):
+    def test_cloudflared_produces_no_url(self, mock_popen, mock_installed, mock_ready):
         mock_proc = MagicMock()
         mock_proc.poll.return_value = None
         mock_proc.stdout = DummyStream(["2026-10-01 INF No URL here...\n"])
@@ -88,9 +107,10 @@ class TestTunnel(unittest.TestCase):
         self.assertIn("Cloudflare tunnel startup timed out", str(cm.exception))
         mock_proc.terminate.assert_called_once()
 
+    @patch("loclx.tunnel.verify_local_server_ready", return_value=True)
     @patch("loclx.tunnel.is_cloudflared_installed", return_value=True)
     @patch("subprocess.Popen")
-    def test_cloudflared_exits_before_url(self, mock_popen, mock_installed):
+    def test_cloudflared_exits_before_url(self, mock_popen, mock_installed, mock_ready):
         mock_proc = MagicMock()
         mock_proc.poll.return_value = 1
         mock_proc.returncode = 1
@@ -101,9 +121,10 @@ class TestTunnel(unittest.TestCase):
             start_cloudflare_tunnel(8765, timeout=2.0)
         self.assertIn("cloudflared exited before producing a public URL", str(cm.exception))
 
+    @patch("loclx.tunnel.verify_local_server_ready", return_value=True)
     @patch("loclx.tunnel.is_cloudflared_installed", return_value=True)
     @patch("subprocess.Popen")
-    def test_timeout_enforced_on_silent_stream(self, mock_popen, mock_installed):
+    def test_timeout_enforced_on_silent_stream(self, mock_popen, mock_installed, mock_ready):
         mock_proc = MagicMock()
         mock_proc.poll.return_value = None
         # Blocking stream simulation with delay greater than timeout
@@ -115,6 +136,13 @@ class TestTunnel(unittest.TestCase):
             start_cloudflare_tunnel(8765, timeout=0.2)
         elapsed = time.time() - start
         self.assertLess(elapsed, 0.9, "Timeout must be enforced even if stream blocks")
+
+    @patch("loclx.tunnel.verify_local_server_ready", return_value=False)
+    @patch("loclx.tunnel.is_cloudflared_installed", return_value=True)
+    def test_server_not_ready_fails(self, mock_installed, mock_ready):
+        with self.assertRaises(RuntimeError) as cm:
+            start_cloudflare_tunnel(8765, timeout=2.0)
+        self.assertIn("is not ready", str(cm.exception))
 
 
 if __name__ == "__main__":

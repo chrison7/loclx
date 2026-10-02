@@ -16,7 +16,16 @@ from loclx.ipinfo import IPManager
 from loclx.qrcode import generate_ascii_qr
 from loclx.security import validate_public_url, validate_sid_format
 from loclx.server import BIND_ADDR, DEFAULT_PORT, get_active_session, get_session_manager, shutdown_server, start_server_background
+from loclx.tunnel import stop_cloudflare_tunnel
 from loclx.utils import Ansi, configure_stdio, emit, format_distance, format_uptime, use_color
+
+
+def build_session_url(public_base: str, sid: str) -> str:
+    """Construct a clean, normalized public session capture URL."""
+    if not validate_sid_format(sid):
+        raise ValueError(f"Invalid session ID format: {sid}")
+    validated_base = validate_public_url(public_base)
+    return f"{validated_base}/session/{sid}"
 
 
 def print_banner(c: Ansi) -> None:
@@ -72,9 +81,12 @@ def run_config_cmd(c: Ansi, port: int = DEFAULT_PORT) -> None:
     emit(c.dim("────────────────────────────────────────────────────────────\n"))
 
 
-def print_session_creation(session, server_url: str, c: Ansi) -> None:
-    sess_url = f"{server_url}session/{session.sid}"
-    dash_url = f"{server_url}dashboard/{session.sid}"
+def print_session_creation(session, server_url: str, c: Ansi, public_url: Optional[str] = None) -> None:
+    if public_url:
+        sess_url = build_session_url(public_url, session.sid)
+    else:
+        sess_url = f"{server_url.rstrip('/')}/session/{session.sid}"
+    dash_url = f"{server_url.rstrip('/')}/dashboard/{session.sid}"
     box_art = r"""
 ========================================================
                      LOCLX SESSION
@@ -91,7 +103,7 @@ def print_session_creation(session, server_url: str, c: Ansi) -> None:
     emit(f"{time.strftime('%H:%M:%S', time.localtime(session.expires_at))}\n")
     emit("Collection URL:")
     emit(f"{sess_url}\n")
-    emit("Dashboard:")
+    emit("Dashboard (Local):")
     emit(f"{dash_url}\n")
     emit("QR:")
     emit("Use:")
@@ -242,7 +254,7 @@ def parse_args(argv: list[str]) -> tuple[argparse.Namespace, Optional[list[str]]
     parser.add_argument(
         "--public-url",
         type=str,
-        default=os.environ.get("LOCLX_PUBLIC_URL"),
+        default=None,
         help="public HTTPS reverse proxy capture URL (e.g. https://YOUR_DOMAIN)",
     )
     parser.add_argument(
@@ -306,7 +318,20 @@ def main(argv: Optional[list[str]] = None) -> int:
     c = Ansi(use_color())
 
     tunnel_proc: Optional[Any] = None
-    raw_public_url = args.public_url or (args.tunnel if isinstance(args.tunnel, str) else None) or os.environ.get("LOCLX_PUBLIC_URL") or os.environ.get("LOCLX_TUNNEL_URL")
+    raw_public_url: Optional[str] = None
+    should_start_tunnel: bool = False
+
+    if args.public_url:
+        raw_public_url = args.public_url
+    elif isinstance(args.tunnel, str):
+        raw_public_url = args.tunnel
+    elif os.environ.get("LOCLX_PUBLIC_URL"):
+        raw_public_url = os.environ.get("LOCLX_PUBLIC_URL")
+    elif os.environ.get("LOCLX_TUNNEL_URL"):
+        raw_public_url = os.environ.get("LOCLX_TUNNEL_URL")
+    elif args.tunnel is True:
+        should_start_tunnel = True
+
     validated_public_url: Optional[str] = None
 
     if raw_public_url:
@@ -327,7 +352,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         return 0
 
     if args.subcommand in (None, "start", "listen"):
-        if not validated_public_url and not args.tunnel:
+        if not validated_public_url and not should_start_tunnel:
             print_banner(c)
             emit(c.red("\n========================================================"))
             emit(c.red("[!] Public capture endpoint not configured.\n"))
@@ -347,7 +372,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         emit(c.red(f"[-] Could not bind {BIND_ADDR}: {exc}"))
         return 1
 
-    if args.tunnel is True and not validated_public_url:
+    if should_start_tunnel and not validated_public_url:
         try:
             from loclx.tunnel import start_cloudflare_tunnel
             emit(c.amber("\n[*] Starting Cloudflare quick tunnel..."))
@@ -365,7 +390,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         act = args.session_action
         if act == "create":
             session = sm.create_session()
-            print_session_creation(session, server_url, c)
+            print_session_creation(session, server_url, c, public_url=validated_public_url)
             shutdown_server()
             return 0
         elif act == "list":
@@ -458,8 +483,11 @@ def main(argv: Optional[list[str]] = None) -> int:
             shutdown_server()
             return 1
         session, sid = res
-        target_base = validated_public_url if validated_public_url else server_url.rstrip("/")
-        sess_url = f"{target_base}/session/{sid}"
+        if not validated_public_url:
+            emit(c.red("[-] Public capture endpoint not configured. QR code requires a public HTTPS URL."))
+            shutdown_server()
+            return 1
+        sess_url = build_session_url(validated_public_url, sid)
         emit(c.bold(c.cyan(f"  [+] TERMINAL QR CODE FOR SESSION {sid}:")))
         emit(generate_ascii_qr(sess_url))
         emit("")
@@ -468,8 +496,7 @@ def main(argv: Optional[list[str]] = None) -> int:
 
     # Default capture workflow
     session = get_active_session()
-    pub_base = validated_public_url.rstrip("/") if validated_public_url else f"http://{BIND_ADDR}:{bound_port}"
-    capture_url = f"{pub_base}/session/{session.sid}"
+    capture_url = build_session_url(validated_public_url, session.sid)
 
     emit(c.green(f"\n[+] Listener started"))
     emit(c.green(f"[+] Internal listener:\n    {BIND_ADDR}:{bound_port}\n"))
@@ -484,14 +511,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         emit(c.dim("\n[*] Shutting down LOCLX server..."))
     finally:
         if tunnel_proc:
-            try:
-                tunnel_proc.terminate()
-                tunnel_proc.wait(timeout=2.0)
-            except Exception:
-                try:
-                    tunnel_proc.kill()
-                except Exception:
-                    pass
+            stop_cloudflare_tunnel(tunnel_proc)
         shutdown_server()
 
     return 0

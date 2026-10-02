@@ -9,11 +9,13 @@ import shutil
 import subprocess
 import threading
 import time
+import urllib.request
 from typing import Optional, Tuple
 
 from loclx.security import validate_public_url
 
 CLOUDFLARED_DOWNLOAD_URL = "https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/"
+URL_PATTERN = re.compile(r"https://[a-zA-Z0-9-]+\.trycloudflare\.com")
 
 
 def is_cloudflared_installed() -> bool:
@@ -33,10 +35,44 @@ def get_cloudflared_install_instructions() -> str:
     )
 
 
+def stop_cloudflare_tunnel(proc: Optional[subprocess.Popen], timeout: float = 2.0) -> None:
+    """Safely terminate and clean up a cloudflared process (idempotent)."""
+    if proc is None:
+        return
+    try:
+        if proc.poll() is None:
+            proc.terminate()
+            try:
+                proc.wait(timeout=timeout)
+            except Exception:
+                proc.kill()
+                proc.wait(timeout=1.0)
+    except Exception:
+        pass
+
+
+def verify_local_server_ready(port: int, timeout: float = 3.0) -> bool:
+    """Perform a lightweight local HTTP check to verify server readiness at 127.0.0.1:<port>."""
+    url = f"http://127.0.0.1:{port}/favicon.ico"
+    start = time.time()
+    while time.time() - start < timeout:
+        try:
+            req = urllib.request.Request(url)
+            with urllib.request.urlopen(req, timeout=0.5) as resp:
+                if resp.status in (200, 204):
+                    return True
+        except Exception:
+            time.sleep(0.05)
+    return False
+
+
 def start_cloudflare_tunnel(port: int, timeout: float = 20.0) -> Tuple[subprocess.Popen, str]:
     """Start cloudflared quick tunnel targeting local HTTP listener and return (proc, public_url)."""
     if not is_cloudflared_installed():
         raise RuntimeError(get_cloudflared_install_instructions())
+
+    if not verify_local_server_ready(port):
+        raise RuntimeError(f"[-] Local LOCLX server on 127.0.0.1:{port} is not ready.")
 
     cmd = ["cloudflared", "tunnel", "--url", f"http://127.0.0.1:{port}"]
 
@@ -71,7 +107,6 @@ def start_cloudflare_tunnel(port: int, timeout: float = 20.0) -> Tuple[subproces
     )
     reader_thread.start()
 
-    url_regex = re.compile(r"https://[a-zA-Z0-9-]+\.trycloudflare\.com")
     start_time = time.time()
     found_url: Optional[str] = None
     captured_lines: list[str] = []
@@ -89,29 +124,24 @@ def start_cloudflare_tunnel(port: int, timeout: float = 20.0) -> Tuple[subproces
             break
 
         captured_lines.append(line.rstrip())
-        match = url_regex.search(line)
+        match = URL_PATTERN.search(line)
         if match:
             found_url = match.group(0)
             break
 
     if not found_url:
-        try:
-            proc.terminate()
-            proc.wait(timeout=2.0)
-        except Exception:
-            try:
-                proc.kill()
-            except Exception:
-                pass
+        exited = proc.poll() is not None
+        exit_code = proc.returncode if exited else None
+        stop_cloudflare_tunnel(proc)
 
         diag = ""
         if captured_lines:
             diag_str = "\n".join(f"    {l}" for l in captured_lines[-5:])
             diag = f"\n[-] Recent output:\n{diag_str}"
 
-        if proc.poll() is not None:
+        if exited:
             msg = (
-                f"[-] cloudflared exited before producing a public URL (exit code {proc.returncode}).{diag}\n"
+                f"[-] cloudflared exited before producing a public URL (exit code {exit_code}).{diag}\n"
                 f"[-] Check command manually: cloudflared tunnel --url http://127.0.0.1:{port}"
             )
         else:

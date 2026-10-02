@@ -22,6 +22,20 @@ LOCLX is an authorized browser-geolocation and OSINT testing laboratory designed
 
 ---
 
+## Quick Install
+
+Automated PEP 668-safe installation:
+
+```bash
+git clone https://github.com/chrison7/loclx.git
+cd loclx
+./install.sh
+source .venv/bin/activate
+loclx --version
+```
+
+---
+
 ## Features
 
 - **Terminal-First Operator Console:** Control sessions, view real-time target connections, render ASCII QR codes, and monitor live GPS streams directly from TTY.
@@ -32,7 +46,7 @@ LOCLX is an authorized browser-geolocation and OSINT testing laboratory designed
 - **Interactive Security Dashboard:** Responsive Leaflet.js visualizer featuring real-time position updates, accuracy radius circle, movement polyline trail, and session telemetry.
 - **Haversine Distance Analysis:** Real-time calculation of distance discrepancy (`delta_km`) between IP geolocation estimates and device GPS fixes.
 - **Ephemeral Session Engine:** Fully in-memory session store (`LX-XXXXXX`) with configurable TTL (default: 30 minutes) and automatic expiration.
-- **Integrated Tunneling & Reverse Proxy:** Built-in Cloudflare tunnel helper (`--tunnel`) and public base URL override (`--public-url`).
+- **Integrated Tunneling & Reverse Proxy:** Built-in Cloudflare tunnel helper (`loclx start --tunnel`) and public base URL override (`--public-url`).
 - **Comprehensive CLI Diagnostics:** Built-in health checker (`loclx diagnostics`) and effective config viewer (`loclx config`).
 
 ---
@@ -84,37 +98,60 @@ LOCLX distinguishes clearly between two distinct location data sources:
 
 - **Python:** Version 3.9 or higher (Python 3.9, 3.10, 3.11, 3.12, 3.13, 3.14+).
 - **Dependencies:** Standard library only (no external PyPI requirements).
-- **Optional External Tools:** `cloudflared` (if using `--tunnel` to launch Cloudflare quick tunnels).
+- **Optional External Tools:** `cloudflared` (required if using `loclx start --tunnel` to launch Cloudflare quick tunnels). Install on Debian/Parrot OS via `sudo apt install cloudflared`.
 
 ---
 
-## Installation
+## Installation Methods
 
-Install LOCLX directly from the project directory:
+### METHOD A — Recommended Development / Source Installation (Script)
+
+Use the provided executable installer to create a isolated virtual environment and install LOCLX in editable mode:
 
 ```bash
-# Clone repository
 git clone https://github.com/chrison7/loclx.git
 cd loclx
-
-# Install in editable mode
-pip install -e .
+./install.sh
+source .venv/bin/activate
+loclx --version
 ```
 
-Or run directly without installation using Python module execution:
+### METHOD B — Manual Virtual Environment Installation
+
+If installing manually on Parrot OS, Debian, Ubuntu, or macOS, always install inside a virtual environment to adhere to PEP 668:
 
 ```bash
-python -m loclx.cli --help
+git clone https://github.com/chrison7/loclx.git
+cd loclx
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -e .
+loclx --version
+```
+
+> **Note:** If `python3 -m venv` is missing on Debian/Parrot OS, install it using:
+> ```bash
+> sudo apt update && sudo apt install python3-venv
+> ```
+
+### METHOD C — Optional `pipx` Installation
+
+`pipx` installs python packages into isolated application environments:
+
+```bash
+sudo apt install pipx
+pipx install .
 ```
 
 ---
 
 ## Usage
 
-LOCLX provides a complete set of CLI subcommands and flags:
+LOCLX provides a clean, terminal-first CLI interface:
 
 ```
-loclx [-h] [--version] [--port INT] [--public-url PUBLIC_URL] [--tunnel [TUNNEL]] [--no-browser] [--debug] [--lab] COMMAND
+loclx [-h] [--version] [--port INT] [--public-url PUBLIC_URL] [--tunnel-url TUNNEL_URL] [--tunnel] [--debug] [--lab] COMMAND
 ```
 
 ### Global Options
@@ -122,46 +159,73 @@ loclx [-h] [--version] [--port INT] [--public-url PUBLIC_URL] [--tunnel [TUNNEL]
 - `-h, --help` — Show CLI help message and exit.
 - `--version` — Display version number (`2.4.8`) and exit.
 - `--port INT` — Set preferred HTTP listener port on `127.0.0.1` (default: `8765`).
-- `--public-url PUBLIC_URL` — Set public HTTPS reverse proxy capture URL (e.g. `https://custom-domain.example.com`).
-- `--tunnel [TUNNEL]` — Start Cloudflare quick tunnel or specify tunnel URL.
-- `--no-browser` — (deprecated) browser auto-launch is permanently disabled.
+- `--public-url URL` — Set public HTTPS reverse proxy capture URL (e.g. `https://custom-domain.example.com`).
+- `--tunnel-url URL` — Set manually configured public tunnel capture URL.
+- `--tunnel` — Boolean flag to automatically launch a Cloudflare quick tunnel.
 - `--debug` — Enable verbose debug logging.
 - `--lab` — Run self-contained local educational demonstration mode.
 
-### CLI Commands
+---
 
-#### Server Commands
+## CLI Command Reference
 
-- `loclx start` — Start the HTTP listener and create an initial session.
+### Server Commands
+
+- `loclx start` — Start the local listener and create an initial session.
+- `loclx start --tunnel` — Start local listener and automatically create a Cloudflare quick tunnel.
+- `loclx start --public-url https://example.com` — Start local listener with custom public HTTPS capture URL.
 - `loclx listen` — Start the HTTP listener without creating an initial session.
 
-#### Session Commands
+### Session Management
 
 - `loclx session create` — Create a new session.
 - `loclx session list` — List active/in-memory sessions.
 - `loclx session info [ID]` — Display session information.
-- `loclx session stop [ID]` — Stop a session.
+- `loclx session stop [ID]` — Stop a specific session.
 
-#### Session Information & Intelligence
+### Session Intelligence Commands
 
-- `loclx target [ID]` — Display connected target details and browser metadata.
-- `loclx gps [ID]` — Display current and best GPS fix data.
+- `loclx target [ID]` — Display connected target details and GPS fix status.
+- `loclx gps [ID]` — Display current GPS fix data for the session.
 - `loclx ip [ID]` — Display network IP geolocation intelligence.
-- `loclx browser [ID]` — Display detailed browser environment metrics.
-- `loclx history [ID]` — Display historical GPS updates.
+- `loclx browser [ID]` — Display detailed browser & device metrics.
+- `loclx history [ID]` — Display historical GPS fix updates.
 - `loclx map [ID]` — Display Google Maps, OpenStreetMap, and GeoURI URLs.
 - `loclx earth [ID]` — Display Google Earth 3D location URL.
 - `loclx report [ID]` — Print complete target intelligence report.
 - `loclx live [ID]` — Attach to live location update stream.
-- `loclx qr [ID]` — Display an ASCII QR code for the session URL.
+- `loclx qr [ID]` — Display an ASCII QR code for the session capture URL.
 - `loclx info [ID]` — Display session summary.
 
-#### Export, Dashboard & Diagnostics
+### Export, Dashboard & Diagnostics
 
-- `loclx export [ID] [--format {json,csv}]` — Export session history.
-- `loclx dashboard` — Print the live dashboard URL.
+- `loclx export [ID] [--format {json,csv}]` — Export session location history.
+- `loclx dashboard [ID]` — Print the live dashboard URL.
 - `loclx diagnostics` — Run system health diagnostics.
 - `loclx config` — Display effective configuration.
+
+---
+
+## Cloudflare Quick Tunnel Requirement
+
+The `--tunnel` flag automates Cloudflare quick tunnels targeting `http://127.0.0.1:<port>`.
+
+`cloudflared` must be installed on your system PATH.
+
+Install `cloudflared` on Debian / Parrot OS:
+```bash
+sudo apt update && sudo apt install cloudflared
+```
+
+If `cloudflared` is not installed when running `loclx start --tunnel`, LOCLX outputs:
+```
+Cloudflare quick tunnel requires cloudflared.
+[*] Installation options:
+    Debian/Parrot: sudo apt install cloudflared
+    Linux:         sudo apt install cloudflared
+    macOS:         brew install cloudflared
+    Windows:       winget install Cloudflare.cloudflared
+```
 
 ---
 
@@ -218,11 +282,9 @@ LOCLX classifies browser-reported accuracy radii into standardized quality tiers
 | **LOW** | $1,000\text{ m} < r \le 10,000\text{ m}$ | Coarse regional location. |
 | **COARSE** | $r > 10,000\text{ m}$ | Low-precision IP/cellular fallback fix. |
 
-*Note:* Laptops, desktop PCs, and virtual machines without dedicated GPS hardware or Wi-Fi scanning capabilities frequently return `COARSE` or `MODERATE` fixes.
-
 ---
 
-## Session Lifecycle
+## Ephemeral Session Lifecycle
 
 1. **Creation:** A session ID (`LX-XXXXXX`) is generated with a 30-minute default TTL (configurable via `LOCLX_SESSION_TTL`).
 2. **Connection:** When a participant opens `/session/LX-XXXXXX`, browser metadata and IP geolocation are recorded.
@@ -230,19 +292,6 @@ LOCLX classifies browser-reported accuracy radii into standardized quality tiers
 4. **Best Fix Tracking:** LOCLX automatically identifies and tracks the fix with the smallest accuracy radius as `best_fix`.
 5. **History:** Up to 500 GPS updates per session are maintained in ephemeral memory (`LOCLX_MAX_HISTORY`).
 6. **Expiration:** Sessions expire automatically after TTL inactivity or when explicitly stopped via `loclx session stop`.
-
----
-
-## Dashboard
-
-Access the real-time Leaflet dashboard at `http://127.0.0.1:8765/dashboard/<SESSION_ID>`.
-
-Features:
-- **Session Overview:** Real-time uptime, connected state, permission state, and update counts.
-- **Dual Map Markers:** Separate markers for device GPS fix (blue dot with accuracy circle) and approximate IP location (orange marker).
-- **Movement Trail:** Live polyline connecting historical GPS fixes.
-- **Discrepancy Analyzer:** Real-time distance comparison between IP location and GPS coordinates.
-- **Telemetry Panel:** System health status, rate limiting indicators, and active session details.
 
 ---
 
@@ -254,32 +303,9 @@ Verify system readiness and troubleshoot configuration issues:
 loclx diagnostics
 ```
 
-Checks performed:
-- Python 3.9+ runtime version
-- Operating system environment
-- Loopback (`127.0.0.1`) interface availability
-- Port availability (default 8765)
-- Required web asset files (`index.html`, `dashboard.html`, `app.js`, `dashboard.js`, `style.css`)
-- In-memory session manager state
-- IP geolocation provider reachability (`ipwho.is`)
-- Terminal-first browser auto-launch policy
-- Security controls (rate limits, request size limits, loopback invariant)
-
 ---
 
-## Security
-
-LOCLX is designed with strict security invariants:
-- **Loopback Bound:** Fixed `127.0.0.1` binding preventing unauthorized local network exposure.
-- **Session Isolation:** Session tokens are strictly validated (`LX-` + 6 hex chars). Administrative endpoints require local loopback requests.
-- **Request Safeguards:** Payload sizes capped at 64 KB; endpoint rate limiting enforced at 100 requests per minute per IP.
-- **No Persistence:** Ephemeral in-memory storage only; no database, credentials, or sensitive tokens are stored to disk.
-
-For complete details, review [SECURITY.md](SECURITY.md) and [docs/security.md](docs/security.md).
-
----
-
-## Development
+## Development & Verification
 
 Run unit tests and verification checks:
 
@@ -292,69 +318,6 @@ python -m compileall src
 
 # Check git diff formatting
 git diff --check
-```
-
----
-
-## Project Structure
-
-```
-loclx/
-├── .github/
-│   └── workflows/
-│       └── ci.yml               # GitHub Actions CI workflow
-├── docs/                        # Technical documentation
-│   ├── architecture.md          # Architecture & data flow spec
-│   ├── browser-permission-model.md # Canonical browser permission guide
-│   ├── cli.md                   # CLI command reference
-│   ├── configuration.md         # Environment variables & constants
-│   ├── dashboard.md             # Dashboard UI documentation
-│   ├── gps.md                   # GPS processing & accuracy tiers
-│   ├── https-requirement.md     # Secure context & proxy requirement
-│   ├── ip-geolocation.md        # IP intelligence specification
-│   ├── ip-vs-gps.md             # GPS vs IP comparison guide
-│   ├── security.md              # Technical security controls
-│   └── troubleshooting.md       # Diagnostic & troubleshooting guide
-├── src/
-│   └── loclx/                   # Production Python package
-│       ├── __init__.py          # Version & package entry
-│       ├── browser.py           # Browser metadata parser
-│       ├── cli.py               # CLI interface & argument parser
-│       ├── dashboard.py         # Dashboard HTML/API handler
-│       ├── diagnostics.py       # Diagnostic engine
-│       ├── gps.py               # Haversine, bearing & quality tier calculations
-│       ├── ipinfo.py            # IP geolocation provider integration
-│       ├── qrcode.py            # ASCII QR code generator
-│       ├── security.py          # Security guard & rate limiter
-│       ├── server.py            # HTTP request handler & router
-│       ├── sessions.py          # In-memory session manager
-│       ├── storage.py           # In-memory GPS history store
-│       ├── tunnel.py            # Cloudflare tunnel helper
-│       └── utils.py             # ANSI formatting & stream utilities
-├── tests/                       # Automated test suite
-│   ├── test_cli.py
-│   ├── test_diagnostics.py
-│   ├── test_gps.py
-│   ├── test_guard.py
-│   ├── test_ipinfo.py
-│   ├── test_qrcode.py
-│   ├── test_security.py
-│   ├── test_server.py
-│   ├── test_sessions.py
-│   └── test_tunnel.py
-├── web/                         # Web participant & dashboard assets
-│   ├── app.js                   # Participant Geolocation API handler
-│   ├── dashboard.html           # Operator dashboard HTML template
-│   ├── dashboard.js             # Operator dashboard Leaflet JS logic
-│   ├── index.html               # Participant landing page template
-│   └── style.css                # CSS styling rules
-├── CHANGELOG.md                 # Version history log
-├── CONTRIBUTING.md              # Development & contribution guidelines
-├── LICENSE                      # MIT License
-├── README.md                    # Project README
-├── SECURITY.md                  # GitHub security policy
-├── loclx                        # Shell launcher script
-└── pyproject.toml               # Package build configuration
 ```
 
 ---

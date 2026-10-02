@@ -1,4 +1,4 @@
-"""Cloudflare Quick Tunnel integration for LOCLX v2.4.7."""
+"""Cloudflare Quick Tunnel integration for LOCLX."""
 
 from __future__ import annotations
 
@@ -26,12 +26,13 @@ def is_cloudflared_installed() -> bool:
 def get_cloudflared_install_instructions() -> str:
     """Return platform-specific installation instructions for cloudflared."""
     return (
-        "[-] cloudflared is not installed or not in PATH.\n"
+        "Cloudflare quick tunnel requires cloudflared.\n"
         "[*] Installation options:\n"
-        "    Linux:   sudo apt install cloudflared\n"
-        "    macOS:   brew install cloudflared\n"
-        "    Windows: winget install Cloudflare.cloudflared\n"
-        f"    Manual:  {CLOUDFLARED_DOWNLOAD_URL}"
+        "    Debian/Parrot: sudo apt install cloudflared\n"
+        "    Linux:         sudo apt install cloudflared\n"
+        "    macOS:         brew install cloudflared\n"
+        "    Windows:       winget install Cloudflare.cloudflared\n"
+        f"    Manual:        {CLOUDFLARED_DOWNLOAD_URL}"
     )
 
 

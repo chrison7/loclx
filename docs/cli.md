@@ -7,7 +7,7 @@ This document is the complete CLI reference for LOCLX (v2.4.8).
 ## Global Usage & Options
 
 ```
-loclx [-h] [--version] [--port INT] [--public-url PUBLIC_URL] [--tunnel [TUNNEL]] [--no-browser] [--debug] [--lab] COMMAND
+loclx [-h] [--version] [--port INT] [--public-url PUBLIC_URL] [--tunnel-url TUNNEL_URL] [--tunnel] [--debug] [--lab] COMMAND
 ```
 
 | Flag | Description |
@@ -16,8 +16,8 @@ loclx [-h] [--version] [--port INT] [--public-url PUBLIC_URL] [--tunnel [TUNNEL]
 | `--version` | Display LOCLX version (`2.4.8`). |
 | `--port INT` | Set preferred HTTP listener port on `127.0.0.1` (default: `8765`). |
 | `--public-url PUBLIC_URL` | Set public HTTPS reverse proxy capture URL (e.g. `https://custom-domain.example.com`). |
-| `--tunnel [TUNNEL]` | Launch automated Cloudflare quick tunnel or specify existing tunnel URL. |
-| `--no-browser` | (deprecated) browser auto-launch is permanently disabled. |
+| `--tunnel-url TUNNEL_URL` | Set manually configured public tunnel capture URL. |
+| `--tunnel` | Boolean flag to launch automated Cloudflare quick tunnel (`loclx start --tunnel` or `loclx --tunnel start`). |
 | `--debug` | Enable verbose debug logging. |
 | `--lab` | Run self-contained local educational demonstration mode. |
 
@@ -28,8 +28,12 @@ loclx [-h] [--version] [--port INT] [--public-url PUBLIC_URL] [--tunnel [TUNNEL]
 ### Server Commands
 
 - `loclx start`
-  - Starts the HTTP server listener on `127.0.0.1:<port>` and immediately creates a new active session (`LX-XXXXXX`).
-  - Supports `--tunnel` and `--public-url` flags.
+  - Starts the HTTP server listener on `127.0.0.1:<port>` and creates an initial active session (`LX-XXXXXX`).
+  - Supports `--tunnel`, `--public-url`, and `--tunnel-url` flags.
+- `loclx start --tunnel`
+  - Starts the HTTP server listener and automatically launches a Cloudflare quick tunnel to obtain a public HTTPS URL (`https://*.trycloudflare.com`).
+- `loclx start --public-url https://example.com`
+  - Starts the HTTP server listener with a pre-configured public HTTPS reverse proxy URL.
 
 - `loclx listen`
   - Starts the HTTP server listener without creating an initial session. Sessions can be created on-demand via CLI.
@@ -90,7 +94,7 @@ loclx [-h] [--version] [--port INT] [--public-url PUBLIC_URL] [--tunnel [TUNNEL]
 - `loclx export [ID] [--format {json,csv}]`
   - Export session GPS history and telemetry data to JSON or CSV format.
 
-- `loclx dashboard`
+- `loclx dashboard [ID]`
   - Print live dashboard URL (`http://127.0.0.1:<port>/dashboard/<SESSION_ID>`).
 
 - `loclx diagnostics`

@@ -1,4 +1,4 @@
-"""HTTP API Server and Static Web Asset Server for LOCLX v2.4.7."""
+"""HTTP API Server and Static Web Asset Server for LOCLX."""
 
 from __future__ import annotations
 

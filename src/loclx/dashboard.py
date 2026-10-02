@@ -1,4 +1,4 @@
-"""Live terminal dashboard renderer and target report generator for LOCLX v2.3.0."""
+"""Live terminal dashboard renderer and target report generator for LOCLX."""
 
 from __future__ import annotations
 
@@ -18,11 +18,11 @@ class TerminalDashboard:
         self.c = ansi or Ansi(True)
 
     def render_banner(self) -> str:
-        banner_art = r"""
+        banner_art = f"""
 ╔════════════════════════════════════════════════════════════╗
 ║                         LOCLX                              ║
 ║     LIVE LOCATION & INFORMATION eXTRACTOR                  ║
-║                         v2.3.0                             ║
+║                         v{VERSION:<34}║
 ╚════════════════════════════════════════════════════════════╝"""
         return self.c.green(banner_art)
 

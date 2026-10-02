@@ -32,12 +32,26 @@ class TestCLI(unittest.TestCase):
         self.assertEqual(args.port, 8765)
         self.assertFalse(args.debug)
         self.assertFalse(args.lab)
-        self.assertIsNone(args.tunnel)
+        self.assertFalse(args.tunnel)
         self.assertIsNone(args.subcommand)
 
-    def test_parse_tunnel_arg(self):
-        args, rem = parse_args(["--tunnel", "https://custom-tunnel.loclx.io"])
-        self.assertEqual(args.tunnel, "https://custom-tunnel.loclx.io")
+    def test_parse_tunnel_flag(self):
+        args, _ = parse_args(["--tunnel"])
+        self.assertTrue(args.tunnel)
+
+    def test_start_tunnel_order_flexibility(self):
+        """Test both loclx start --tunnel and loclx --tunnel start."""
+        args1, _ = parse_args(["start", "--tunnel"])
+        self.assertEqual(args1.subcommand, "start")
+        self.assertTrue(args1.tunnel)
+
+        args2, _ = parse_args(["--tunnel", "start"])
+        self.assertEqual(args2.subcommand, "start")
+        self.assertTrue(args2.tunnel)
+
+    def test_tunnel_url_parsing(self):
+        args, _ = parse_args(["--tunnel-url", "https://custom-tunnel.loclx.io"])
+        self.assertEqual(args.tunnel_url, "https://custom-tunnel.loclx.io")
 
     def test_parse_subcommands(self):
         args, rem = parse_args(["start"])
@@ -58,6 +72,18 @@ class TestCLI(unittest.TestCase):
 
         args, rem = parse_args(["earth", "LX-123456"])
         self.assertEqual(args.subcommand, "earth")
+
+        args, rem = parse_args(["ip", "LX-123456"])
+        self.assertEqual(args.subcommand, "ip")
+
+        args, rem = parse_args(["browser", "LX-123456"])
+        self.assertEqual(args.subcommand, "browser")
+
+        args, rem = parse_args(["history", "LX-123456"])
+        self.assertEqual(args.subcommand, "history")
+
+        args, rem = parse_args(["dashboard", "LX-123456"])
+        self.assertEqual(args.subcommand, "dashboard")
 
     def test_generate_target_report(self):
         sm = SessionManager()
@@ -86,6 +112,10 @@ class TestCLI(unittest.TestCase):
         res = main(["--public-url", "http://insecure-remote.com"])
         self.assertEqual(res, 1)
 
+    def test_invalid_tunnel_url_fails(self):
+        res = main(["--tunnel-url", "http://insecure-tunnel.com"])
+        self.assertEqual(res, 1)
+
     def test_qr_without_public_url_fails(self):
         old_pub = os.environ.pop("LOCLX_PUBLIC_URL", None)
         old_tun = os.environ.pop("LOCLX_TUNNEL_URL", None)
@@ -99,7 +129,7 @@ class TestCLI(unittest.TestCase):
                 os.environ["LOCLX_TUNNEL_URL"] = old_tun
 
     def test_cli_url_precedence_hierarchy(self):
-        """11. CLI URL PRECEDENCE: Test --public-url > --tunnel <URL> > LOCLX_PUBLIC_URL > LOCLX_TUNNEL_URL > --tunnel."""
+        """CLI URL PRECEDENCE: Test --public-url > --tunnel-url > LOCLX_PUBLIC_URL > LOCLX_TUNNEL_URL > --tunnel."""
         old_pub = os.environ.pop("LOCLX_PUBLIC_URL", None)
         old_tun = os.environ.pop("LOCLX_TUNNEL_URL", None)
 
@@ -107,26 +137,26 @@ class TestCLI(unittest.TestCase):
             # 1. --public-url overrides everything
             os.environ["LOCLX_PUBLIC_URL"] = "https://env-pub.example.com"
             os.environ["LOCLX_TUNNEL_URL"] = "https://env-tun.example.com"
-            args, _ = parse_args(["--public-url", "https://arg-pub.example.com", "--tunnel", "https://arg-tun.example.com"])
-            raw_url = args.public_url or (args.tunnel if isinstance(args.tunnel, str) else None)
+            args, _ = parse_args(["--public-url", "https://arg-pub.example.com", "--tunnel-url", "https://arg-tun.example.com"])
+            raw_url = args.public_url or args.tunnel_url
             self.assertEqual(raw_url, "https://arg-pub.example.com")
 
-            # 2. --tunnel <URL> overrides env vars
-            args2, _ = parse_args(["--tunnel", "https://arg-tun.example.com"])
-            raw_url2 = args2.public_url or (args2.tunnel if isinstance(args2.tunnel, str) else None) or os.environ.get("LOCLX_PUBLIC_URL")
+            # 2. --tunnel-url overrides env vars
+            args2, _ = parse_args(["--tunnel-url", "https://arg-tun.example.com"])
+            raw_url2 = args2.public_url or args2.tunnel_url or os.environ.get("LOCLX_PUBLIC_URL")
             self.assertEqual(raw_url2, "https://arg-tun.example.com")
 
             # 3. LOCLX_PUBLIC_URL overrides LOCLX_TUNNEL_URL
             args3, _ = parse_args([])
-            raw_url3 = args3.public_url or (args3.tunnel if isinstance(args3.tunnel, str) else None) or os.environ.get("LOCLX_PUBLIC_URL")
+            raw_url3 = args3.public_url or args3.tunnel_url or os.environ.get("LOCLX_PUBLIC_URL")
             self.assertEqual(raw_url3, "https://env-pub.example.com")
 
             # 4. LOCLX_TUNNEL_URL used when LOCLX_PUBLIC_URL is absent
             os.environ.pop("LOCLX_PUBLIC_URL", None)
-            raw_url4 = args3.public_url or (args3.tunnel if isinstance(args3.tunnel, str) else None) or os.environ.get("LOCLX_PUBLIC_URL") or os.environ.get("LOCLX_TUNNEL_URL")
+            raw_url4 = args3.public_url or args3.tunnel_url or os.environ.get("LOCLX_PUBLIC_URL") or os.environ.get("LOCLX_TUNNEL_URL")
             self.assertEqual(raw_url4, "https://env-tun.example.com")
 
-            # 5. --tunnel (without value) sets tunnel flag true
+            # 5. --tunnel sets boolean flag True
             args5, _ = parse_args(["--tunnel"])
             self.assertTrue(args5.tunnel is True)
 
@@ -141,13 +171,36 @@ class TestCLI(unittest.TestCase):
                 os.environ.pop("LOCLX_TUNNEL_URL", None)
 
     def test_qr_requires_validated_public_url(self):
-        """12. QR: Verify QR generation requires a validated public HTTPS endpoint."""
+        """QR: Verify QR generation requires a validated public HTTPS endpoint."""
         url = build_session_url("https://valid-public.example.com", "LX-123456")
         self.assertEqual(url, "https://valid-public.example.com/session/LX-123456")
 
-        # Insecure HTTP remote URL is rejected for participant QR/URL build
         with self.assertRaises(ValueError):
             build_session_url("http://insecure.example.com", "LX-123456")
+
+    def test_pep668_safe_installation_docs(self):
+        """Verify README and install.sh enforce PEP 668 safe installation procedures."""
+        repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        readme_path = os.path.join(repo_root, "README.md")
+        install_path = os.path.join(repo_root, "install.sh")
+
+        with open(readme_path, "r", encoding="utf-8") as f:
+            readme_text = f.read()
+        with open(install_path, "r", encoding="utf-8") as f:
+            install_text = f.read()
+
+        self.assertIn("python3 -m venv .venv", readme_text)
+        self.assertIn("source .venv/bin/activate", readme_text)
+        self.assertNotIn("--break-system-packages", readme_text)
+
+        self.assertIn("python3 -m venv", install_text)
+        self.assertIn(".venv/bin/python -m pip install -e .", install_text)
+
+    def test_launcher_file_permission(self):
+        """Verify ./loclx file launcher is present and imports correctly."""
+        repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        launcher_path = os.path.join(repo_root, "loclx")
+        self.assertTrue(os.path.isfile(launcher_path))
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-"""Terminal-first Hound-style CLI for LOCLX v2.4.8."""
+"""Terminal-first Hound-style CLI for LOCLX."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import os
 import shutil
 import sys
 import time
-from typing import Optional
+from typing import Any, Optional
 
 from loclx import VERSION
 from loclx.dashboard import TerminalDashboard, generate_compact_information_report, generate_target_report
@@ -81,7 +81,7 @@ def run_config_cmd(c: Ansi, port: int = DEFAULT_PORT) -> None:
     emit(c.dim("────────────────────────────────────────────────────────────\n"))
 
 
-def print_session_creation(session, server_url: str, c: Ansi, public_url: Optional[str] = None) -> None:
+def print_session_creation(session: Any, server_url: str, c: Ansi, public_url: Optional[str] = None) -> None:
     if public_url:
         sess_url = build_session_url(public_url, session.sid)
     else:
@@ -139,7 +139,7 @@ def print_session_list(c: Ansi) -> None:
     emit("")
 
 
-def print_target_gps_info(session, c: Ansi) -> None:
+def print_target_gps_info(session: Any, c: Ansi) -> None:
     fix = session.current_fix
     if fix:
         emit(c.bold(c.green("\nTARGET CONNECTED")))
@@ -157,7 +157,62 @@ def print_target_gps_info(session, c: Ansi) -> None:
         emit(c.amber(f"\n[*] Session {session.sid}: Waiting for user browser location permission grant...\n"))
 
 
-def print_map_visualization(session, server_url: str, c: Ansi) -> None:
+def print_ip_info(session: Any, c: Ansi) -> None:
+    ip = session.ip_info
+    emit(c.bold(c.cyan("\nNETWORK / IP INTELLIGENCE")))
+    emit(c.dim("────────────────────────────────────────"))
+    emit(f"Session: {session.sid}\n")
+    if ip:
+        emit(f"Public IP   : {ip.get('ip') or '—'}")
+        emit(f"Country     : {ip.get('country') or '—'}")
+        emit(f"Region      : {ip.get('region') or '—'}")
+        emit(f"City        : {ip.get('city') or '—'}")
+        emit(f"ISP         : {ip.get('isp') or '—'}")
+        emit(f"Org         : {ip.get('org') or '—'}")
+        emit(f"ASN         : {ip.get('asn') or '—'}")
+        emit(f"Hostname    : {ip.get('hostname') or '—'}")
+        emit(f"Coordinates : {ip.get('lat') if ip.get('lat') is not None else '—'}, {ip.get('lon') if ip.get('lon') is not None else '—'} (APPROXIMATE)\n")
+    else:
+        emit(c.amber("[*] Network IP intelligence lookup pending...\n"))
+
+
+def print_browser_info(session: Any, c: Ansi) -> None:
+    b = session.browser_info
+    emit(c.bold(c.cyan("\nBROWSER / DEVICE INTELLIGENCE")))
+    emit(c.dim("────────────────────────────────────────"))
+    emit(f"Session: {session.sid}\n")
+    if b:
+        emit(f"User Agent  : {b.user_agent}")
+        emit(f"Browser     : {b.browser} {b.browser_version}")
+        emit(f"Platform    : {b.platform} ({b.device_type})")
+        emit(f"Screen      : {b.screen_resolution}")
+        emit(f"Viewport    : {b.viewport_size}")
+        emit(f"CPU Cores   : {b.cpu_cores}")
+        emit(f"Timezone    : {b.timezone}")
+        emit(f"Language    : {b.language}")
+        emit(f"Touch       : {b.touch_capability}\n")
+    else:
+        emit(c.amber("[*] Browser information pending...\n"))
+
+
+def print_history_info(session: Any, c: Ansi) -> None:
+    history = session.storage.get_history()
+    emit(c.bold(c.cyan("\nLOCATION HISTORY")))
+    emit(c.dim("────────────────────────────────────────"))
+    emit(f"Session: {session.sid} ({len(history)} records)\n")
+    if history:
+        emit(c.bold(f"{'TIME':<10} {'LATITUDE':<14} {'LONGITUDE':<14} {'ACCURACY':<10} {'SOURCE'}"))
+        for r in history:
+            lat_s = f"{r['lat']:.9f}" if r.get('lat') is not None else "—"
+            lon_s = f"{r['lon']:.9f}" if r.get('lon') is not None else "—"
+            acc_s = f"±{r['accuracy']:.0f} m" if r.get('accuracy') is not None else "—"
+            emit(f"{r.get('timestamp',''):<10} {lat_s:<14} {lon_s:<14} {acc_s:<10} {r.get('source','Browser Geolocation')}")
+        emit("")
+    else:
+        emit(c.amber("[*] No GPS history records stored for this session.\n"))
+
+
+def print_map_visualization(session: Any, server_url: str, c: Ansi) -> None:
     fix = session.current_fix
     ip = session.ip_info
 
@@ -199,7 +254,7 @@ def print_map_visualization(session, server_url: str, c: Ansi) -> None:
     emit(c.dim("[*] Browser auto-launch: DISABLED\n"))
 
 
-def print_earth_visualization(session, c: Ansi) -> None:
+def print_earth_visualization(session: Any, c: Ansi) -> None:
     fix = session.current_fix
     emit(c.bold(c.cyan("\nGOOGLE EARTH 3D LOCATION VIEW")))
     emit(c.dim("────────────────────────────────────────"))
@@ -233,103 +288,149 @@ def resolve_session_arg(target_id: Optional[str], c: Ansi) -> Optional[tuple[Any
         return session, session.sid
 
 
-def parse_args(argv: list[str]) -> tuple[argparse.Namespace, Optional[list[str]]]:
-    parser = argparse.ArgumentParser(
-        prog="loclx",
-        description=f"LOCLX v{VERSION} — Live Location & Information eXtractor (Terminal-First OSINT Tool).",
-        epilog=f"The bind address is fixed at {BIND_ADDR} and cannot be changed.",
-    )
-    parser.add_argument(
-        "--version",
-        action="version",
-        version=f"%(prog)s {VERSION}",
-    )
-    parser.add_argument(
+def parse_args(argv: list[str]) -> tuple[argparse.Namespace, list[str]]:
+    common_parser = argparse.ArgumentParser(add_help=False)
+    common_parser.add_argument(
         "--port",
         type=int,
         default=DEFAULT_PORT,
         metavar="INT",
         help=f"preferred port on {BIND_ADDR} (default: {DEFAULT_PORT})",
     )
-    parser.add_argument(
+    common_parser.add_argument(
         "--public-url",
         type=str,
         default=None,
         help="public HTTPS reverse proxy capture URL (e.g. https://YOUR_DOMAIN)",
     )
-    parser.add_argument(
-        "--tunnel",
-        nargs="?",
-        const=True,
+    common_parser.add_argument(
+        "--tunnel-url",
+        type=str,
         default=None,
-        help="start Cloudflare quick tunnel or specify tunnel URL",
+        help="manually configured public tunnel URL",
     )
-    parser.add_argument(
+    common_parser.add_argument(
+        "--tunnel",
+        action="store_true",
+        default=False,
+        help="start Cloudflare quick tunnel",
+    )
+    common_parser.add_argument(
         "--no-browser",
         action="store_true",
         help="(deprecated) browser auto-launch is permanently disabled",
     )
-    parser.add_argument(
+    common_parser.add_argument(
         "--debug",
         action="store_true",
         help="enable verbose debug logging",
     )
-    parser.add_argument(
+    common_parser.add_argument(
         "--lab",
         action="store_true",
         help="run self-contained local educational demonstration mode",
     )
 
+    subcommand_common = argparse.ArgumentParser(add_help=False, argument_default=argparse.SUPPRESS)
+    subcommand_common.add_argument(
+        "--port",
+        type=int,
+        metavar="INT",
+        help=f"preferred port on {BIND_ADDR} (default: {DEFAULT_PORT})",
+    )
+    subcommand_common.add_argument(
+        "--public-url",
+        type=str,
+        help="public HTTPS reverse proxy capture URL (e.g. https://YOUR_DOMAIN)",
+    )
+    subcommand_common.add_argument(
+        "--tunnel-url",
+        type=str,
+        help="manually configured public tunnel URL",
+    )
+    subcommand_common.add_argument(
+        "--tunnel",
+        action="store_true",
+        help="start Cloudflare quick tunnel",
+    )
+    subcommand_common.add_argument(
+        "--no-browser",
+        action="store_true",
+        help="(deprecated) browser auto-launch is permanently disabled",
+    )
+    subcommand_common.add_argument(
+        "--debug",
+        action="store_true",
+        help="enable verbose debug logging",
+    )
+    subcommand_common.add_argument(
+        "--lab",
+        action="store_true",
+        help="run self-contained local educational demonstration mode",
+    )
+
+    parser = argparse.ArgumentParser(
+        prog="loclx",
+        description=f"LOCLX v{VERSION} — Live Location & Information eXtractor (Terminal-First OSINT Tool).",
+        epilog=f"The bind address is fixed at {BIND_ADDR} and cannot be changed.",
+        parents=[common_parser],
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {VERSION}",
+    )
+
     subparsers = parser.add_subparsers(dest="subcommand", help="available subcommands")
 
-    subparsers.add_parser("start", help="start server and create session")
-    subparsers.add_parser("listen", help="start server listener")
+    subparsers.add_parser("start", help="start server and create session", parents=[subcommand_common])
+    subparsers.add_parser("listen", help="start server listener", parents=[subcommand_common])
 
-    sess_p = subparsers.add_parser("session", help="session management")
+    sess_p = subparsers.add_parser("session", help="session management", parents=[subcommand_common])
     sess_sub = sess_p.add_subparsers(dest="session_action", help="session action")
-    sess_sub.add_parser("create", help="create new session")
-    sess_sub.add_parser("list", help="list active sessions")
-    sess_info = sess_sub.add_parser("info", help="display session info")
+    sess_sub.add_parser("create", help="create new session", parents=[subcommand_common])
+    sess_sub.add_parser("list", help="list active sessions", parents=[subcommand_common])
+    sess_info = sess_sub.add_parser("info", help="display session info", parents=[subcommand_common])
     sess_info.add_argument("id", nargs="?", help="session ID")
-    sess_stop = sess_sub.add_parser("stop", help="stop session")
+    sess_stop = sess_sub.add_parser("stop", help="stop session", parents=[subcommand_common])
     sess_stop.add_argument("id", nargs="?", help="session ID")
 
-    for cmd_name in ["target", "gps", "ip", "browser", "history", "map", "earth", "report", "live", "qr", "info"]:
-        sp = subparsers.add_parser(cmd_name, help=f"run {cmd_name} action")
+    for cmd_name in ["target", "gps", "ip", "browser", "history", "map", "earth", "report", "live", "qr", "info", "dashboard"]:
+        sp = subparsers.add_parser(cmd_name, help=f"run {cmd_name} action", parents=[subcommand_common])
         sp.add_argument("id", nargs="?", help="session ID")
 
-    export_p = subparsers.add_parser("export", help="export session history")
+    export_p = subparsers.add_parser("export", help="export session history", parents=[subcommand_common])
     export_p.add_argument("id", nargs="?", help="session ID")
     export_p.add_argument("--format", choices=["json", "csv"], default="json", help="export format")
 
-    subparsers.add_parser("dashboard", help="print live dashboard URL")
-    subparsers.add_parser("diagnostics", help="run system health diagnostics")
-    subparsers.add_parser("config", help="show effective configuration")
+    subparsers.add_parser("diagnostics", help="run system health diagnostics", parents=[subcommand_common])
+    subparsers.add_parser("config", help="show effective configuration", parents=[subcommand_common])
 
-    known, remaining = parser.parse_known_args(argv)
-    if known.port < 0 or known.port > 65535:
+    args = parser.parse_args(argv)
+    if args.port < 0 or args.port > 65535:
         parser.error("--port must be between 0 and 65535")
-    return known, remaining
+    return args, []
 
 
 def main(argv: Optional[list[str]] = None) -> int:
     configure_stdio()
-    args, remaining = parse_args(sys.argv[1:] if argv is None else argv)
+    args, _ = parse_args(sys.argv[1:] if argv is None else argv)
     c = Ansi(use_color())
 
     tunnel_proc: Optional[Any] = None
     raw_public_url: Optional[str] = None
     should_start_tunnel: bool = False
 
-    if args.public_url:
+    if getattr(args, "public_url", None):
         raw_public_url = args.public_url
-    elif isinstance(args.tunnel, str):
-        raw_public_url = args.tunnel
+    elif getattr(args, "tunnel_url", None):
+        raw_public_url = args.tunnel_url
     elif os.environ.get("LOCLX_PUBLIC_URL"):
         raw_public_url = os.environ.get("LOCLX_PUBLIC_URL")
     elif os.environ.get("LOCLX_TUNNEL_URL"):
         raw_public_url = os.environ.get("LOCLX_TUNNEL_URL")
-    elif args.tunnel is True:
+
+    if getattr(args, "tunnel", False) and not raw_public_url:
         should_start_tunnel = True
 
     validated_public_url: Optional[str] = None
@@ -356,10 +457,13 @@ def main(argv: Optional[list[str]] = None) -> int:
             print_banner(c)
             emit(c.red("\n========================================================"))
             emit(c.red("[!] Public capture endpoint not configured.\n"))
-            emit(c.red("Configure:\n"))
-            emit(c.red("  LOCLX_PUBLIC_URL=https://your-domain.example\n"))
-            emit(c.red("or use:\n"))
-            emit(c.red("  ./loclx --tunnel"))
+            emit(c.red("Configure a public capture endpoint using one of the following:\n"))
+            emit(c.red("  1. Cloudflare Quick Tunnel:"))
+            emit(c.red("     loclx start --tunnel\n"))
+            emit(c.red("  2. Manual Public HTTPS URL:"))
+            emit(c.red("     loclx start --public-url https://your-domain.example\n"))
+            emit(c.red("  3. Environment Variable:"))
+            emit(c.red("     export LOCLX_PUBLIC_URL=https://your-domain.example"))
             emit(c.red("========================================================\n"))
             return 1
 
@@ -385,9 +489,9 @@ def main(argv: Optional[list[str]] = None) -> int:
     sm = get_session_manager()
     dash_renderer = TerminalDashboard(c)
 
-    # Subcommand execution handling for admin/debug use
+    # Subcommand execution handling
     if args.subcommand == "session":
-        act = args.session_action
+        act = getattr(args, "session_action", None)
         if act == "create":
             session = sm.create_session()
             print_session_creation(session, server_url, c, public_url=validated_public_url)
@@ -454,6 +558,64 @@ def main(argv: Optional[list[str]] = None) -> int:
             return 1
         session, _ = res
         print_target_gps_info(session, c)
+        shutdown_server()
+        return 0
+
+    if args.subcommand == "ip":
+        res = resolve_session_arg(getattr(args, "id", None), c)
+        if not res:
+            shutdown_server()
+            return 1
+        session, _ = res
+        print_ip_info(session, c)
+        shutdown_server()
+        return 0
+
+    if args.subcommand == "browser":
+        res = resolve_session_arg(getattr(args, "id", None), c)
+        if not res:
+            shutdown_server()
+            return 1
+        session, _ = res
+        print_browser_info(session, c)
+        shutdown_server()
+        return 0
+
+    if args.subcommand == "history":
+        res = resolve_session_arg(getattr(args, "id", None), c)
+        if not res:
+            shutdown_server()
+            return 1
+        session, _ = res
+        print_history_info(session, c)
+        shutdown_server()
+        return 0
+
+    if args.subcommand == "export":
+        res = resolve_session_arg(getattr(args, "id", None), c)
+        if not res:
+            shutdown_server()
+            return 1
+        session, _ = res
+        fmt = getattr(args, "format", "json")
+        if fmt == "csv":
+            emit(session.storage.export_csv())
+        else:
+            emit(session.storage.export_json())
+        shutdown_server()
+        return 0
+
+    if args.subcommand == "dashboard":
+        res = resolve_session_arg(getattr(args, "id", None), c)
+        if not res:
+            shutdown_server()
+            return 1
+        session, sid = res
+        dash_url = f"{server_url.rstrip('/')}/dashboard/{sid}"
+        emit(c.bold(c.cyan("\nLOCLX DASHBOARD URL")))
+        emit(c.dim("────────────────────────────────────────"))
+        emit(f"Session: {sid}")
+        emit(f"URL    : {dash_url}\n")
         shutdown_server()
         return 0
 

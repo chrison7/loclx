@@ -37,13 +37,13 @@ class TestTunnel(unittest.TestCase):
         args, rem = parse_args(["--tunnel"])
         self.assertTrue(args.tunnel)
 
-    def test_parse_tunnel_flag_with_value(self):
-        args, rem = parse_args(["--tunnel", "https://custom.trycloudflare.com"])
-        self.assertEqual(args.tunnel, "https://custom.trycloudflare.com")
+    def test_parse_tunnel_url(self):
+        args, rem = parse_args(["--tunnel-url", "https://custom.trycloudflare.com"])
+        self.assertEqual(args.tunnel_url, "https://custom.trycloudflare.com")
 
     def test_install_instructions(self):
         instructions = get_cloudflared_install_instructions()
-        self.assertIn("cloudflared is not installed", instructions)
+        self.assertIn("Cloudflare quick tunnel requires cloudflared", instructions)
         self.assertIn("https://developers.cloudflare.com", instructions)
 
     def test_is_cloudflared_installed_returns_bool(self):
@@ -148,7 +148,7 @@ class TestTunnel(unittest.TestCase):
     def test_cloudflared_not_installed_fails(self, mock_installed):
         with self.assertRaises(RuntimeError) as cm:
             start_cloudflare_tunnel(8765, timeout=2.0)
-        self.assertIn("cloudflared is not installed", str(cm.exception))
+        self.assertIn("Cloudflare quick tunnel requires cloudflared", str(cm.exception))
 
     @patch("loclx.tunnel.verify_local_server_ready", return_value=True)
     @patch("loclx.tunnel.is_cloudflared_installed", return_value=True)

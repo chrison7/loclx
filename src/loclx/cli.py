@@ -1,4 +1,4 @@
-"""Terminal-first Hound-style CLI for LOCLX v2.4.7."""
+"""Terminal-first Hound-style CLI for LOCLX v2.4.8."""
 
 from __future__ import annotations
 

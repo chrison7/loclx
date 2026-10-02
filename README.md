@@ -111,32 +111,57 @@ python -m loclx.cli --help
 
 ## Usage
 
-LOCLX provides a full set of CLI subcommands and flags:
+LOCLX provides a complete set of CLI subcommands and flags:
 
 ```
-loclx [-h] [--version] [--port INT] [--public-url PUBLIC_URL] [--tunnel [TUNNEL]] [--debug] [--lab] COMMAND
+loclx [-h] [--version] [--port INT] [--public-url PUBLIC_URL] [--tunnel [TUNNEL]] [--no-browser] [--debug] [--lab] COMMAND
 ```
 
-### Core Subcommands
+### Global Options
 
-- `loclx start`: Start the HTTP listener and immediately create a new session.
-- `loclx listen`: Start the HTTP listener without creating an initial session.
-- `loclx session [list|create|delete|info]`: Manage active in-memory sessions.
-- `loclx target [ID]`: Display connected target details and browser metadata.
-- `loclx gps [ID]`: Display current and best GPS fixes for a session.
-- `loclx ip [ID]`: Display network IP geolocation intelligence.
-- `loclx browser [ID]`: Display detailed browser environment metrics (User-Agent, platform, language, cores, screen).
-- `loclx history [ID]`: Print historical GPS fixes for a session.
-- `loclx map [ID]`: Generate Google Maps and OpenStreetMap URLs for session coordinates.
-- `loclx earth [ID]`: Generate Google Earth Web deep links.
-- `loclx report [ID]`: Print a complete intelligence report aggregating all session data.
-- `loclx live [ID]`: Monitor live incoming location updates for a session.
-- `loclx qr [ID]`: Display an ASCII QR code for the session URL.
-- `loclx info [ID]`: Summary view of session status.
-- `loclx export [ID]`: Export session history to JSON or CSV.
-- `loclx dashboard [ID]`: Display the live dashboard URL (`/dashboard/<SESSION_ID>`).
-- `loclx diagnostics`: Run environment, network, and security health checks.
-- `loclx config`: Print effective runtime settings and environment variables.
+- `-h, --help` — Show CLI help message and exit.
+- `--version` — Display version number (`2.4.8`) and exit.
+- `--port INT` — Set preferred HTTP listener port on `127.0.0.1` (default: `8765`).
+- `--public-url PUBLIC_URL` — Set public HTTPS reverse proxy capture URL (e.g. `https://custom-domain.example.com`).
+- `--tunnel [TUNNEL]` — Start Cloudflare quick tunnel or specify tunnel URL.
+- `--no-browser` — (deprecated) browser auto-launch is permanently disabled.
+- `--debug` — Enable verbose debug logging.
+- `--lab` — Run self-contained local educational demonstration mode.
+
+### CLI Commands
+
+#### Server Commands
+
+- `loclx start` — Start the HTTP listener and create an initial session.
+- `loclx listen` — Start the HTTP listener without creating an initial session.
+
+#### Session Commands
+
+- `loclx session create` — Create a new session.
+- `loclx session list` — List active/in-memory sessions.
+- `loclx session info [ID]` — Display session information.
+- `loclx session stop [ID]` — Stop a session.
+
+#### Session Information & Intelligence
+
+- `loclx target [ID]` — Display connected target details and browser metadata.
+- `loclx gps [ID]` — Display current and best GPS fix data.
+- `loclx ip [ID]` — Display network IP geolocation intelligence.
+- `loclx browser [ID]` — Display detailed browser environment metrics.
+- `loclx history [ID]` — Display historical GPS updates.
+- `loclx map [ID]` — Display Google Maps, OpenStreetMap, and GeoURI URLs.
+- `loclx earth [ID]` — Display Google Earth 3D location URL.
+- `loclx report [ID]` — Print complete target intelligence report.
+- `loclx live [ID]` — Attach to live location update stream.
+- `loclx qr [ID]` — Display an ASCII QR code for the session URL.
+- `loclx info [ID]` — Display session summary.
+
+#### Export, Dashboard & Diagnostics
+
+- `loclx export [ID] [--format {json,csv}]` — Export session history.
+- `loclx dashboard` — Print the live dashboard URL.
+- `loclx diagnostics` — Run system health diagnostics.
+- `loclx config` — Display effective configuration.
 
 ---
 
@@ -204,7 +229,7 @@ LOCLX classifies browser-reported accuracy radii into standardized quality tiers
 3. **GPS Updates:** When the participant clicks "Continue" and allows browser location, coordinates are posted to `/api/session/LX-XXXXXX/report`.
 4. **Best Fix Tracking:** LOCLX automatically identifies and tracks the fix with the smallest accuracy radius as `best_fix`.
 5. **History:** Up to 500 GPS updates per session are maintained in ephemeral memory (`LOCLX_MAX_HISTORY`).
-6. **Expiration:** Sessions expire automatically after TTL inactivity or when explicitly deleted via `loclx session delete`.
+6. **Expiration:** Sessions expire automatically after TTL inactivity or when explicitly stopped via `loclx session stop`.
 
 ---
 

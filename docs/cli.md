@@ -4,10 +4,10 @@ This document is the complete CLI reference for LOCLX (v2.4.8).
 
 ---
 
-## Global Options
+## Global Usage & Options
 
 ```
-loclx [-h] [--version] [--port INT] [--public-url PUBLIC_URL] [--tunnel [TUNNEL]] [--debug] [--lab] COMMAND
+loclx [-h] [--version] [--port INT] [--public-url PUBLIC_URL] [--tunnel [TUNNEL]] [--no-browser] [--debug] [--lab] COMMAND
 ```
 
 | Flag | Description |
@@ -15,8 +15,9 @@ loclx [-h] [--version] [--port INT] [--public-url PUBLIC_URL] [--tunnel [TUNNEL]
 | `-h, --help` | Show CLI help message and exit. |
 | `--version` | Display LOCLX version (`2.4.8`). |
 | `--port INT` | Set preferred HTTP listener port on `127.0.0.1` (default: `8765`). |
-| `--public-url URL` | Set public HTTPS reverse proxy capture URL (e.g. `https://custom-domain.example.com`). |
-| `--tunnel [URL]` | Launch automated Cloudflare quick tunnel or specify existing tunnel URL. |
+| `--public-url PUBLIC_URL` | Set public HTTPS reverse proxy capture URL (e.g. `https://custom-domain.example.com`). |
+| `--tunnel [TUNNEL]` | Launch automated Cloudflare quick tunnel or specify existing tunnel URL. |
+| `--no-browser` | (deprecated) browser auto-launch is permanently disabled. |
 | `--debug` | Enable verbose debug logging. |
 | `--lab` | Run self-contained local educational demonstration mode. |
 
@@ -24,7 +25,7 @@ loclx [-h] [--version] [--port INT] [--public-url PUBLIC_URL] [--tunnel [TUNNEL]
 
 ## Subcommands Reference
 
-### Server & Session Initialization
+### Server Commands
 
 - `loclx start`
   - Starts the HTTP server listener on `127.0.0.1:<port>` and immediately creates a new active session (`LX-XXXXXX`).
@@ -39,15 +40,15 @@ loclx [-h] [--version] [--port INT] [--public-url PUBLIC_URL] [--tunnel [TUNNEL]
 
 - `loclx session`
   - Manage in-memory sessions.
-  - Options:
-    - `loclx session list`: List all active in-memory sessions, creation time, TTL, and status.
-    - `loclx session create`: Manually create a new session ID.
-    - `loclx session delete <ID>`: Expire and delete a specific session.
-    - `loclx session info <ID>`: Show detailed status for a specific session.
+  - Subcommands:
+    - `loclx session create`: Create a new session.
+    - `loclx session list`: List active/in-memory sessions.
+    - `loclx session info [ID]`: Display detailed information for a specific session.
+    - `loclx session stop [ID]`: Stop a specific session.
 
 ---
 
-### Target Intelligence & Location Data
+### Session Information & Target Intelligence
 
 - `loclx target [ID]`
   - Display target connection status, connected IP address, connection timestamp, and User-Agent summary.
@@ -64,34 +65,33 @@ loclx [-h] [--version] [--port INT] [--public-url PUBLIC_URL] [--tunnel [TUNNEL]
 - `loclx history [ID]`
   - Display chronological list of historical GPS updates received for the session.
 
+- `loclx map [ID]`
+  - Generate mapping URLs (Google Maps, OpenStreetMap, GeoURI) for the session's best GPS fix.
+
+- `loclx earth [ID]`
+  - Generate Google Earth 3D location URL for the session's best GPS fix.
+
 - `loclx report [ID]`
   - Print a complete intelligence report aggregating session overview, target connection metrics, browser environment data, network IP geolocation, GPS location data, map deep links, and distance discrepancy analysis.
 
 - `loclx live [ID]`
   - Attach to live location update stream in terminal TTY.
 
----
-
-### Mapping & QR Codes
-
-- `loclx map [ID]`
-  - Generate mapping URLs (Google Maps, OpenStreetMap, GeoURI) for the session's best GPS fix.
-
-- `loclx earth [ID]`
-  - Generate Google Earth Web deep link for the session's best GPS fix.
-
 - `loclx qr [ID]`
   - Render high-contrast ASCII QR code in TTY for the session capture URL.
 
+- `loclx info [ID]`
+  - Display session summary.
+
 ---
 
-### Export & Utility Commands
+### Export, Dashboard & Utility Commands
 
-- `loclx export [ID]`
+- `loclx export [ID] [--format {json,csv}]`
   - Export session GPS history and telemetry data to JSON or CSV format.
 
-- `loclx dashboard [ID]`
-  - Display live dashboard URL (`http://127.0.0.1:<port>/dashboard/<SESSION_ID>`).
+- `loclx dashboard`
+  - Print live dashboard URL (`http://127.0.0.1:<port>/dashboard/<SESSION_ID>`).
 
 - `loclx diagnostics`
   - Run automated system health, network, asset, and security policy checks.

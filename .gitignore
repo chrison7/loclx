@@ -1,3 +1,40 @@
+# Python byte-compiled / optimized files
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+*.py$py.class
+
+# Testing & Coverage
 .pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Virtual Environments
+venv/
+env/
+ENV/
+.venv/
+.env
+
+# Build & Packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# IDE & OS Specific Files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Logs & Temporary Data
+*.log
+logs/
+tmp/
+scratch/

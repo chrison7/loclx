@@ -1,64 +1,100 @@
-# LOCLX CLI Reference Guide (v2.1.0)
+# Command Line Interface (CLI) Reference
 
-LOCLX provides a dual interface: a rich, ANSI-grouped interactive terminal menu and standard CLI subcommands.
+This document is the complete CLI reference for LOCLX (v2.4.8).
 
-## Command Syntax
-
-```bash
-loclx [flags] [subcommand] [arguments]
-```
+---
 
 ## Global Options
 
-| Option | Type | Description |
-| :--- | :--- | :--- |
-| `--port <int>` | Integer | Preferred HTTP server port on `127.0.0.1` (default: 8765) |
-| `--no-browser` | Flag | Disable auto-launching default web browser on startup |
-| `--lab` | Flag | Run educational self-contained demonstration mode |
-| `--debug` | Flag | Enable verbose debug log output |
-| `--version` | Flag | Display LOCLX version and exit |
-| `--help` | Flag | Display usage menu and security epilog |
+```
+loclx [-h] [--version] [--port INT] [--public-url PUBLIC_URL] [--tunnel [TUNNEL]] [--debug] [--lab] COMMAND
+```
 
-## Subcommands
+| Flag | Description |
+| :--- | :--- |
+| `-h, --help` | Show CLI help message and exit. |
+| `--version` | Display LOCLX version (`2.4.8`). |
+| `--port INT` | Set preferred HTTP listener port on `127.0.0.1` (default: `8765`). |
+| `--public-url URL` | Set public HTTPS reverse proxy capture URL (e.g. `https://custom-domain.example.com`). |
+| `--tunnel [URL]` | Launch automated Cloudflare quick tunnel or specify existing tunnel URL. |
+| `--debug` | Enable verbose debug logging. |
+| `--lab` | Run self-contained local educational demonstration mode. |
 
-### 1. `loclx`
-Launches the interactive TTY menu loop with auto-detected terminal width formatting.
+---
 
-### 2. `loclx start`
-Starts the HTTP server and creates a new active session token.
+## Subcommands Reference
 
-### 3. `loclx session list`
-Lists all non-expired active sessions (`LX-XXXXXX`), creation timestamp, and GPS update counts.
+### Server & Session Initialization
 
-### 4. `loclx session info <id>`
-Displays detailed breakdown of session status, duration, latest GPS fix, approximate IP info, and browser capabilities.
+- `loclx start`
+  - Starts the HTTP server listener on `127.0.0.1:<port>` and immediately creates a new active session (`LX-XXXXXX`).
+  - Supports `--tunnel` and `--public-url` flags.
 
-### 5. `loclx session stop <id>`
-Stops location ingestion for the specified session.
+- `loclx listen`
+  - Starts the HTTP server listener without creating an initial session. Sessions can be created on-demand via CLI.
 
-### 6. `loclx dashboard`
-Opens the interactive web security dashboard (`http://127.0.0.1:8765/dashboard`).
+---
 
-### 7. `loclx gps`
-Outputs the current session's latest GPS fix coordinates, accuracy radius, altitude, and timestamp.
+### Session Management
 
-### 8. `loclx ip`
-Fetches and displays network IP intelligence, explicitly labeled as **APPROXIMATE**.
+- `loclx session`
+  - Manage in-memory sessions.
+  - Options:
+    - `loclx session list`: List all active in-memory sessions, creation time, TTL, and status.
+    - `loclx session create`: Manually create a new session ID.
+    - `loclx session delete <ID>`: Expire and delete a specific session.
+    - `loclx session info <ID>`: Show detailed status for a specific session.
 
-### 9. `loclx browser`
-Displays client environment properties reported by the web browser.
+---
 
-### 10. `loclx history`
-Displays bounded in-memory location history logs for the active session.
+### Target Intelligence & Location Data
 
-### 11. `loclx export <id> [--format json|csv]`
-Exports session location history records to JSON or CSV format.
+- `loclx target [ID]`
+  - Display target connection status, connected IP address, connection timestamp, and User-Agent summary.
 
-### 12. `loclx diagnostics`
-Runs environment health checks (Python 3.9+, OS, 127.0.0.1 loopback bind, port availability, web assets, session engine, IP APIs).
+- `loclx gps [ID]`
+  - Display current and best GPS fixes for the session, including latitude, longitude, accuracy radius, quality classification (`HIGH`..`COARSE`), altitude, speed, heading, and timestamp.
 
-### 13. `loclx config`
-Displays effective configuration environment variables and loopback invariants.
+- `loclx ip [ID]`
+  - Display network IP geolocation intelligence: IP address, ISP, ASN, country, region, city, postal code, timezone, and reverse DNS.
 
-### 14. `loclx qr`
-Renders a pure-Python ASCII QR code in the terminal encoding the local server URL (`http://127.0.0.1:8765/`).
+- `loclx browser [ID]`
+  - Display detailed client browser metrics: User-Agent string, OS, browser engine, screen width/height/DPR, CPU logical cores, system language, and timezone.
+
+- `loclx history [ID]`
+  - Display chronological list of historical GPS updates received for the session.
+
+- `loclx report [ID]`
+  - Print a complete intelligence report aggregating session overview, target connection metrics, browser environment data, network IP geolocation, GPS location data, map deep links, and distance discrepancy analysis.
+
+- `loclx live [ID]`
+  - Attach to live location update stream in terminal TTY.
+
+---
+
+### Mapping & QR Codes
+
+- `loclx map [ID]`
+  - Generate mapping URLs (Google Maps, OpenStreetMap, GeoURI) for the session's best GPS fix.
+
+- `loclx earth [ID]`
+  - Generate Google Earth Web deep link for the session's best GPS fix.
+
+- `loclx qr [ID]`
+  - Render high-contrast ASCII QR code in TTY for the session capture URL.
+
+---
+
+### Export & Utility Commands
+
+- `loclx export [ID]`
+  - Export session GPS history and telemetry data to JSON or CSV format.
+
+- `loclx dashboard [ID]`
+  - Display live dashboard URL (`http://127.0.0.1:<port>/dashboard/<SESSION_ID>`).
+
+- `loclx diagnostics`
+  - Run automated system health, network, asset, and security policy checks.
+
+- `loclx config`
+  - Display effective runtime configuration parameters and environment variables.

@@ -1,4 +1,4 @@
-"""System and Environment Diagnostics for LOCLX v2.1.1."""
+"""System and Environment Diagnostics for LOCLX."""
 
 from __future__ import annotations
 

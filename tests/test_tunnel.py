@@ -144,6 +144,26 @@ class TestTunnel(unittest.TestCase):
             start_cloudflare_tunnel(8765, timeout=2.0)
         self.assertIn("is not ready", str(cm.exception))
 
+    @patch("loclx.tunnel.is_cloudflared_installed", return_value=False)
+    def test_cloudflared_not_installed_fails(self, mock_installed):
+        with self.assertRaises(RuntimeError) as cm:
+            start_cloudflare_tunnel(8765, timeout=2.0)
+        self.assertIn("cloudflared is not installed", str(cm.exception))
+
+    @patch("loclx.tunnel.verify_local_server_ready", return_value=True)
+    @patch("loclx.tunnel.is_cloudflared_installed", return_value=True)
+    @patch("subprocess.Popen")
+    def test_malformed_tunnel_url_output(self, mock_popen, mock_installed, mock_ready):
+        mock_proc = MagicMock()
+        mock_proc.poll.return_value = None
+        mock_proc.stdout = DummyStream(["2026-10-01 INF Tunnel registered: http://invalid-tunnel.example.com\n"])
+        mock_popen.return_value = mock_proc
+
+        with self.assertRaises(RuntimeError) as cm:
+            start_cloudflare_tunnel(8765, timeout=0.3)
+        self.assertIn("Cloudflare tunnel startup timed out", str(cm.exception))
+        mock_proc.terminate.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main()

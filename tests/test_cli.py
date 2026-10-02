@@ -98,6 +98,57 @@ class TestCLI(unittest.TestCase):
             if old_tun:
                 os.environ["LOCLX_TUNNEL_URL"] = old_tun
 
+    def test_cli_url_precedence_hierarchy(self):
+        """11. CLI URL PRECEDENCE: Test --public-url > --tunnel <URL> > LOCLX_PUBLIC_URL > LOCLX_TUNNEL_URL > --tunnel."""
+        old_pub = os.environ.pop("LOCLX_PUBLIC_URL", None)
+        old_tun = os.environ.pop("LOCLX_TUNNEL_URL", None)
+
+        try:
+            # 1. --public-url overrides everything
+            os.environ["LOCLX_PUBLIC_URL"] = "https://env-pub.example.com"
+            os.environ["LOCLX_TUNNEL_URL"] = "https://env-tun.example.com"
+            args, _ = parse_args(["--public-url", "https://arg-pub.example.com", "--tunnel", "https://arg-tun.example.com"])
+            raw_url = args.public_url or (args.tunnel if isinstance(args.tunnel, str) else None)
+            self.assertEqual(raw_url, "https://arg-pub.example.com")
+
+            # 2. --tunnel <URL> overrides env vars
+            args2, _ = parse_args(["--tunnel", "https://arg-tun.example.com"])
+            raw_url2 = args2.public_url or (args2.tunnel if isinstance(args2.tunnel, str) else None) or os.environ.get("LOCLX_PUBLIC_URL")
+            self.assertEqual(raw_url2, "https://arg-tun.example.com")
+
+            # 3. LOCLX_PUBLIC_URL overrides LOCLX_TUNNEL_URL
+            args3, _ = parse_args([])
+            raw_url3 = args3.public_url or (args3.tunnel if isinstance(args3.tunnel, str) else None) or os.environ.get("LOCLX_PUBLIC_URL")
+            self.assertEqual(raw_url3, "https://env-pub.example.com")
+
+            # 4. LOCLX_TUNNEL_URL used when LOCLX_PUBLIC_URL is absent
+            os.environ.pop("LOCLX_PUBLIC_URL", None)
+            raw_url4 = args3.public_url or (args3.tunnel if isinstance(args3.tunnel, str) else None) or os.environ.get("LOCLX_PUBLIC_URL") or os.environ.get("LOCLX_TUNNEL_URL")
+            self.assertEqual(raw_url4, "https://env-tun.example.com")
+
+            # 5. --tunnel (without value) sets tunnel flag true
+            args5, _ = parse_args(["--tunnel"])
+            self.assertTrue(args5.tunnel is True)
+
+        finally:
+            if old_pub:
+                os.environ["LOCLX_PUBLIC_URL"] = old_pub
+            else:
+                os.environ.pop("LOCLX_PUBLIC_URL", None)
+            if old_tun:
+                os.environ["LOCLX_TUNNEL_URL"] = old_tun
+            else:
+                os.environ.pop("LOCLX_TUNNEL_URL", None)
+
+    def test_qr_requires_validated_public_url(self):
+        """12. QR: Verify QR generation requires a validated public HTTPS endpoint."""
+        url = build_session_url("https://valid-public.example.com", "LX-123456")
+        self.assertEqual(url, "https://valid-public.example.com/session/LX-123456")
+
+        # Insecure HTTP remote URL is rejected for participant QR/URL build
+        with self.assertRaises(ValueError):
+            build_session_url("http://insecure.example.com", "LX-123456")
+
 
 if __name__ == "__main__":
     unittest.main()

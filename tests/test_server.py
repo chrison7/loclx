@@ -41,10 +41,63 @@ class TestServer(unittest.TestCase):
                 body = resp.read().decode("utf-8")
                 if path == "app.js":
                     self.assertIn("GEO_FAST_OPTS", body)
+                    self.assertIn("GEO_WATCH_OPTS", body)
                     self.assertIn("GEO_PRECISE_OPTS", body)
                     self.assertIn("startHighAccuracyWatch", body)
                     self.assertIn("getLocationPermissionState", body)
                     self.assertIn("enableContinueButton", body)
+                    self.assertIn("runWatchFallback", body)
+                    self.assertIn("runPreciseFallback", body)
+                    self.assertIn("clearWatchSafely", body)
+                    self.assertIn("isValidCoordinate", body)
+
+    def test_invalid_gps_payloads(self):
+        sess = self.sm.create_session()
+        invalid_gps_cases = [
+            {"lat": 100.0, "lon": 76.0},          # Invalid latitude (>90)
+            {"lat": -95.0, "lon": 76.0},          # Invalid latitude (<-90)
+            {"lat": 10.0, "lon": 190.0},          # Invalid longitude (>180)
+            {"lat": 10.0, "lon": -200.0},         # Invalid longitude (<-180)
+            {"lat": "NaN", "lon": 76.0},          # Non-numeric string
+            {"lat": 10.0, "lon": 76.0, "accuracy": -5.0}, # Negative accuracy
+            {"lat": 10.0},                        # Missing lon
+            {"lon": 76.0},                        # Missing lat
+            "not-a-dict",                         # Malformed gps type
+        ]
+
+        for bad_gps in invalid_gps_cases:
+            payload = json.dumps({"gps": bad_gps}).encode("utf-8")
+            req = urllib.request.Request(
+                f"{self.server_url}api/session/{sess.sid}/location",
+                data=payload,
+                headers={"Content-Type": "application/json"},
+            )
+            with self.assertRaises(urllib.error.HTTPError) as cm:
+                urllib.request.urlopen(req)
+            self.assertEqual(cm.exception.code, 400)
+
+    def test_browser_and_ip_only_payloads(self):
+        sess = self.sm.create_session()
+
+        # Browser-only payload
+        b_payload = json.dumps({"browser": {"userAgent": "TestBrowser"}}).encode("utf-8")
+        req_b = urllib.request.Request(
+            f"{self.server_url}api/session/{sess.sid}/location",
+            data=b_payload,
+            headers={"Content-Type": "application/json"},
+        )
+        with urllib.request.urlopen(req_b) as resp:
+            self.assertEqual(resp.status, 200)
+
+        # IP-only payload
+        ip_payload = json.dumps({"ip": {"ip": "1.1.1.1", "city": "TestCity"}}).encode("utf-8")
+        req_ip = urllib.request.Request(
+            f"{self.server_url}api/session/{sess.sid}/location",
+            data=ip_payload,
+            headers={"Content-Type": "application/json"},
+        )
+        with urllib.request.urlopen(req_ip) as resp:
+            self.assertEqual(resp.status, 200)
 
     def test_best_gps_fix_tracking(self):
         sess = self.sm.create_session()

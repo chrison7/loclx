@@ -83,15 +83,16 @@ def validate_gps_payload(gps_data: Any) -> bool:
         return False
 
     spd = gps_data.get("speed")
-    if spd is not None and not is_finite_number(spd):
-        return False
+    if spd is not None:
+        if not is_finite_number(spd) or float(spd) < 0:
+            return False
 
     hdg = gps_data.get("heading")
     if hdg is not None:
         if not is_finite_number(hdg):
             return False
         hdg_f = float(hdg)
-        if not (0.0 <= hdg_f < 360.0):
+        if not (0.0 <= hdg_f <= 360.0):
             return False
 
     return True

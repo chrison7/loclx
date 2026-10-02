@@ -325,6 +325,10 @@ class LabHandler(BaseHTTPRequestHandler):
         url_path = self.path.split("?")[0]
 
         if url_path == "/report" or url_path == "/api/session/location":
+            gps_data = payload.get("gps")
+            if "gps" in payload and not validate_gps_payload(gps_data):
+                self.send_json(400, {"error": "Invalid GPS data payload"})
+                return
             session = get_active_session()
             self._handle_location_update(session, payload, client_ip)
             self.send_json(200, {"status": "ok", "sessionId": session.sid})
@@ -350,7 +354,7 @@ class LabHandler(BaseHTTPRequestHandler):
 
                 if action == "location":
                     gps_data = payload.get("gps")
-                    if gps_data and not validate_gps_payload(gps_data):
+                    if "gps" in payload and not validate_gps_payload(gps_data):
                         self.send_json(400, {"error": "Invalid GPS data payload"})
                         return
                     self._handle_location_update(session, payload, client_ip)

@@ -40,14 +40,11 @@ class TestServer(unittest.TestCase):
                 self.assertEqual(resp.status, 200)
                 body = resp.read().decode("utf-8")
                 if path == "app.js":
-                    self.assertIn("GEO_FAST_OPTS", body)
-                    self.assertIn("GEO_WATCH_OPTS", body)
-                    self.assertIn("GEO_PRECISE_OPTS", body)
+                    self.assertIn("GEO_PRIMARY_OPTS", body)
+                    self.assertIn("GEO_PRECISE_WATCH_OPTS", body)
                     self.assertIn("startHighAccuracyWatch", body)
                     self.assertIn("getLocationPermissionState", body)
                     self.assertIn("enableContinueButton", body)
-                    self.assertIn("runWatchFallback", body)
-                    self.assertIn("runPreciseFallback", body)
                     self.assertIn("clearWatchSafely", body)
                     self.assertIn("isValidCoordinate", body)
 
@@ -433,7 +430,7 @@ class TestServer(unittest.TestCase):
         self.assertIn("lookupIp()", js)
         self.assertIn("postPayload({ browser: bInfo })", js)
         # Ensure getCurrentPosition and watchPosition are inside function definitions, not top-level execution
-        self.assertIn("function startDemo", js)
+        self.assertIn("startDemo", js)
         self.assertIn("navigator.geolocation", js)
         self.assertIn("getCurrentPosition", js)
         self.assertIn("watchPosition", js)

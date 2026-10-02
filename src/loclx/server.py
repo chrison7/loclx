@@ -22,6 +22,7 @@ from loclx.security import (
     extract_client_ip,
     sanitize_input,
     validate_gps_payload,
+    validate_public_url,
     validate_sid_format,
 )
 from loclx.sessions import Session, SessionManager
@@ -29,6 +30,22 @@ from loclx.utils import Ansi, emit, format_distance, format_uptime
 
 BIND_ADDR = "127.0.0.1"
 DEFAULT_PORT = 8765
+
+
+def get_public_base_url(headers: Optional[Any] = None, server_port: int = DEFAULT_PORT) -> str:
+    """Safely resolve public base URL from environment config, proxy headers, or loopback fallback."""
+    env_url = os.environ.get("LOCLX_PUBLIC_URL") or os.environ.get("PUBLIC_BASE_URL") or os.environ.get("LOCLX_TUNNEL_URL")
+    if env_url and env_url.strip():
+        try:
+            return validate_public_url(env_url.strip())
+        except Exception:
+            pass
+    if headers:
+        proto = headers.get("X-Forwarded-Proto") or headers.get("X-Forwarded-Scheme")
+        host = headers.get("X-Forwarded-Host") or headers.get("Host")
+        if proto and host and proto.lower() == "https":
+            return f"https://{host.strip()}"
+    return f"http://{BIND_ADDR}:{server_port}"
 
 _session_manager = SessionManager()
 _ip_manager = IPManager()
@@ -276,7 +293,8 @@ class LabHandler(BaseHTTPRequestHandler):
                     self.end_headers()
                     self.wfile.write(report.encode("utf-8"))
                 elif action == "qr":
-                    sess_url = f"http://{BIND_ADDR}:{self.server.server_address[1]}/session/{session.sid}"
+                    base_url = get_public_base_url(self.headers, self.server.server_address[1])
+                    sess_url = f"{base_url}/session/{session.sid}"
                     qr = generate_ascii_qr(sess_url)
                     self.send_json(200, {"id": session.sid, "url": sess_url, "qr": qr})
                 elif action == "export":

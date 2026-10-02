@@ -88,6 +88,7 @@ class Session:
             "heading": float(gps_data["heading"]) if gps_data.get("heading") is not None else None,
             "speed": float(gps_data["speed"]) if gps_data.get("speed") is not None else None,
             "timestamp": time.strftime("%H:%M:%S"),
+            "source": "Browser Geolocation",
         }
         self.current_fix = fix
         self.storage.add_record(fix)
@@ -142,15 +143,23 @@ class Session:
             "status": self.status,
             "connected": self.connected,
             "client_ip": self.client_ip,
+            "clientIp": self.client_ip,
             "created": time.strftime("%H:%M:%S", time.localtime(self.created_at)),
             "created_at": self.created_at,
+            "createdAt": self.created_at,
             "expires_at": self.expires_at,
+            "expiresAt": self.expires_at,
             "first_seen": first_s,
+            "firstSeen": first_s,
             "last_seen": last_s,
+            "lastSeen": last_s,
             "lastActivity": time.strftime("%H:%M:%S", time.localtime(self.last_activity)),
+            "last_activity": time.strftime("%H:%M:%S", time.localtime(self.last_activity)),
             "gpsUpdates": self.gps_updates,
+            "gps_updates": self.gps_updates,
             "update_count": self.gps_updates,
             "currentFix": self.current_fix,
+            "current_fix": self.current_fix,
             "gps_fix": self.current_fix,
             "bestFix": self.best_fix or self.current_fix,
             "best_fix": self.best_fix or self.current_fix,
@@ -158,11 +167,15 @@ class Session:
             "best_accuracy": self.best_accuracy,
             "best_fix_timestamp": self.best_fix_timestamp,
             "ipInfo": self.ip_info,
+            "ip_info": self.ip_info,
             "ip_information": self.ip_info,
             "browserInfo": self.browser_info.to_dict() if self.browser_info else None,
+            "browser_info": self.browser_info.to_dict() if self.browser_info else None,
             "browser_information": self.browser_info.to_dict() if self.browser_info else None,
             "diffMeters": self.calculate_ip_gps_diff(),
+            "diff_meters": self.calculate_ip_gps_diff(),
             "uptimeSeconds": uptime,
+            "uptime_seconds": uptime,
         }
 
 

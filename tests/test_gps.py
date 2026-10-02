@@ -4,7 +4,7 @@ import unittest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 
-from loclx.gps import GPSFix, classify_gps_quality, format_accuracy, format_altitude, haversine_m, validate_coordinates  # noqa: E402
+from loclx.gps import GPSFix, classify_gps_quality, format_accuracy, format_altitude, generate_map_urls, haversine_m, validate_coordinates  # noqa: E402
 
 
 class TestGPS(unittest.TestCase):
@@ -37,12 +37,12 @@ class TestGPS(unittest.TestCase):
         self.assertEqual(format_altitude(34.0), "34 m")
         self.assertEqual(format_altitude(None), "n/a")
 
-    def test_gps_fix_object(self):
-        fix = GPSFix(latitude=10.1, longitude=76.1, accuracy=5.0)
-        d = fix.to_dict()
-        self.assertEqual(d["lat"], 10.1)
-        self.assertEqual(d["lon"], 76.1)
-        self.assertEqual(d["accuracy"], 5.0)
+    def test_generate_map_urls(self):
+        urls = generate_map_urls(10.123456789, 76.123456789)
+        self.assertIn("q=10.123456789,76.123456789", urls["google_maps"])
+        self.assertIn("search/10.123456789,76.123456789", urls["google_earth"])
+        self.assertIn("mlat=10.123457&mlon=76.123457", urls["openstreetmap"])
+        self.assertEqual(urls["geouri"], "geo:10.123457,76.123457?z=16")
 
 
 if __name__ == "__main__":

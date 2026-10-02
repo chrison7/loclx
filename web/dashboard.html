@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>LOCLX Security &amp; OSINT Dashboard</title>
-<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/style.css?v=2.4.8">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <style>
@@ -153,6 +153,24 @@
     </section>
   </div>
 
+  <!-- System & Geolocation Diagnostics Panel -->
+  <div class="grid-2">
+    <section class="panel">
+      <h2>System &amp; Geolocation Diagnostics</h2>
+      <div class="row"><span class="k">Secure Context</span><span class="v" id="dash-diag-secure">—</span></div>
+      <div class="row"><span class="k">Geolocation API</span><span class="v" id="dash-diag-geo">—</span></div>
+      <div class="row"><span class="k">Permission State</span><span class="v" id="dash-diag-perm">—</span></div>
+      <div class="row"><span class="k">GPS State</span><span class="v" id="dash-diag-gps-state">—</span></div>
+    </section>
+    <section class="panel">
+      <h2>Telemetry Diagnostics</h2>
+      <div class="row"><span class="k">Last GPS Update</span><span class="v" id="dash-diag-last-update">—</span></div>
+      <div class="row"><span class="k">GPS Accuracy</span><span class="v" id="dash-diag-acc">—</span></div>
+      <div class="row"><span class="k">Target Session ID</span><span class="v ok" id="dash-diag-sid">—</span></div>
+      <div class="row"><span class="k">Connection State</span><span class="v" id="dash-diag-conn">—</span></div>
+    </section>
+  </div>
+
   <div class="grid-2">
     <!-- Browser GPS -->
     <section class="panel">
@@ -221,6 +239,6 @@
 
   <p><a href="/" class="btn-link" style="color:var(--accent-blue); text-decoration:none; font-weight:600; font-size:0.875rem;">&larr; Return to Lab Page</a></p>
 </div>
-<script src="/dashboard.js"></script>
+<script src="/dashboard.js?v=2.4.8"></script>
 </body>
 </html>

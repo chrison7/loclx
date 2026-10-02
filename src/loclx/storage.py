@@ -35,6 +35,7 @@ class SessionStorage:
             "altitude": record.get("altitude"),
             "heading": record.get("heading"),
             "speed": record.get("speed"),
+            "source": record.get("source", "Browser Geolocation"),
         }
         self.history.append(entry)
         if len(self.history) > self.max_history:
@@ -51,7 +52,7 @@ class SessionStorage:
 
     def export_csv(self) -> str:
         output = io.StringIO()
-        fieldnames = ["timestamp", "lat", "lon", "accuracy", "altitude", "heading", "speed"]
+        fieldnames = ["timestamp", "lat", "lon", "accuracy", "altitude", "heading", "speed", "source"]
         writer = csv.DictWriter(output, fieldnames=fieldnames)
         writer.writeheader()
         for record in self.history:
@@ -63,5 +64,6 @@ class SessionStorage:
                 "altitude": record.get("altitude", ""),
                 "heading": record.get("heading", ""),
                 "speed": record.get("speed", ""),
+                "source": record.get("source", "Browser Geolocation"),
             })
         return output.getvalue()

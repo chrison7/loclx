@@ -15,7 +15,8 @@
     pollTimer: null,
     isPolling: false,
     lastGpsCoords: null,
-    lastIpCoords: null
+    lastIpCoords: null,
+    hasCenteredGps: false
   };
 
   function getSessionId() {
@@ -45,6 +46,15 @@
     return true;
   }
 
+  function formatAcc(acc) {
+    if (typeof acc !== "number" || !isFinite(acc)) return "—";
+    if (acc >= 1000) {
+      const km = acc / 1000.0;
+      return "±" + (km % 1 === 0 ? km.toFixed(0) : km.toFixed(1)) + " km";
+    }
+    return "±" + Math.round(acc) + " m";
+  }
+
   function initMap() {
     const mapContainer = document.getElementById("mapContainer");
     if (!mapContainer || typeof L === "undefined" || state.map) return;
@@ -66,7 +76,7 @@
 
     if (points.length > 0) {
       const bounds = L.latLngBounds(points);
-      state.map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
+      state.map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
     }
   }
 
@@ -80,9 +90,14 @@
 
       if (!state.gpsMarker) {
         state.gpsMarker = L.marker(gpsLatLng).addTo(state.map);
-        state.gpsMarker.bindPopup("<b>Browser GPS</b><br>Permission-Based Fix");
+        state.gpsMarker.bindPopup("<b>Browser GPS — Permission Based</b><br>Target Device Location");
       } else {
         state.gpsMarker.setLatLng(gpsLatLng);
+      }
+
+      if (!state.hasCenteredGps) {
+        state.map.setView(gpsLatLng, 15);
+        state.hasCenteredGps = true;
       }
 
       if (state.history && Array.isArray(state.history)) {
@@ -110,7 +125,7 @@
           fillColor: "#f59e0b",
           fillOpacity: 0.8
         }).addTo(state.map);
-        state.ipMarker.bindPopup("<b>Approximate IP Location</b><br>Network Routing Estimate");
+        state.ipMarker.bindPopup("<b>IP Geolocation — Approximate</b><br>Network Routing Estimate");
       } else {
         state.ipMarker.setLatLng(ipLatLng);
       }
@@ -157,11 +172,11 @@
       tr.appendChild(tdLon);
 
       const tdAcc = document.createElement("td");
-      tdAcc.textContent = typeof rec.accuracy === "number" ? "±" + Math.round(rec.accuracy) + " m" : "—";
+      tdAcc.textContent = formatAcc(rec.accuracy);
       tr.appendChild(tdAcc);
 
       const tdSrc = document.createElement("td");
-      tdSrc.textContent = "Browser Geolocation";
+      tdSrc.textContent = rec.source || "Browser Geolocation";
       tr.appendChild(tdSrc);
 
       tbody.appendChild(tr);
@@ -177,14 +192,23 @@
     fetch(endpoint)
       .then(function (res) {
         if (!res.ok) {
+          console.error("Dashboard API fetch failed:", {
+            status: res.status,
+            endpoint: endpoint,
+            sessionId: state.sid
+          });
+
           if (res.status === 409) {
             setText("dash-status", "STOPPED");
+            setText("dash-diag-gps-state", "Stopped");
             if (state.pollTimer) clearInterval(state.pollTimer);
           } else if (res.status === 410) {
             setText("dash-status", "EXPIRED");
+            setText("dash-diag-gps-state", "Expired");
             if (state.pollTimer) clearInterval(state.pollTimer);
           } else if (res.status === 404) {
             setText("dash-status", "NOT FOUND");
+            setText("dash-diag-gps-state", "Not Found");
             if (state.pollTimer) clearInterval(state.pollTimer);
           }
           return null;
@@ -218,19 +242,37 @@
         setText("dash-updates", sess.gps_updates !== undefined ? sess.gps_updates : (sess.gpsUpdates || 0));
 
         let permState = "waiting for fix";
-        if (sess.status === "STOPPED") permState = "session stopped";
-        else if (sess.status === "EXPIRED") permState = "session expired";
-        else if (fix) permState = "fix received";
+        let gpsState = "Waiting";
+        if (sess.status === "STOPPED") {
+          permState = "session stopped";
+          gpsState = "Stopped";
+        } else if (sess.status === "EXPIRED") {
+          permState = "session expired";
+          gpsState = "Expired";
+        } else if (fix) {
+          permState = "fix received";
+          gpsState = "Available";
+        }
         setText("dash-permission-state", permState);
+
+        // System & Geolocation Diagnostics
+        setText("dash-diag-secure", window.isSecureContext ? "YES" : "NO");
+        setText("dash-diag-geo", navigator.geolocation ? "Available" : "Unavailable");
+        setText("dash-diag-perm", permState);
+        setText("dash-diag-gps-state", gpsState);
+        setText("dash-diag-last-update", fix && fix.timestamp ? fix.timestamp : "—");
+        setText("dash-diag-acc", fix ? formatAcc(fix.accuracy) : "—");
+        setText("dash-diag-sid", sess.id || state.sid);
+        setText("dash-diag-conn", sess.connected ? "connected" : "disconnected");
 
         // Populate Browser GPS
         if (fix && isValidCoordinate(fix.lat, fix.lon)) {
-          const fixStr = fix.lat.toFixed(6) + ", " + fix.lon.toFixed(6) + " (±" + Math.round(fix.accuracy || 0) + "m)";
+          const fixStr = fix.lat.toFixed(6) + ", " + fix.lon.toFixed(6) + " (" + formatAcc(fix.accuracy) + ")";
           setText("dash-last-fix", fixStr);
           setText("dash-gps-loc-summary", fixStr);
           setText("dash-gps-lat", fix.lat.toFixed(9));
           setText("dash-gps-lon", fix.lon.toFixed(9));
-          setText("dash-gps-acc", typeof fix.accuracy === "number" ? "±" + Math.round(fix.accuracy) + " m" : "—");
+          setText("dash-gps-acc", formatAcc(fix.accuracy));
           setText("dash-gps-alt", typeof fix.altitude === "number" ? fix.altitude.toFixed(1) + " m" : "n/a");
           setText("dash-gps-speed", typeof fix.speed === "number" ? fix.speed.toFixed(1) + " m/s" : "n/a");
           setText("dash-gps-hdg", typeof fix.heading === "number" ? Math.round(fix.heading) + "°" : "n/a");
@@ -290,8 +332,9 @@
         updateMapUI(fix, ip);
         updateHistoryTable(history);
       })
-      .catch(function () {
+      .catch(function (err) {
         state.isPolling = false;
+        console.error("Dashboard poll exception:", err);
       });
   }
 
@@ -326,7 +369,7 @@
     if (btnResetView) {
       btnResetView.onclick = function () {
         if (state.map && state.lastGpsCoords) {
-          state.map.setView(state.lastGpsCoords, 14);
+          state.map.setView(state.lastGpsCoords, 15);
         } else if (state.map) {
           state.map.setView([20, 0], 2);
         }

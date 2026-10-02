@@ -291,6 +291,40 @@ class LabHandler(BaseHTTPRequestHandler):
                         self.wfile.write(csv_data)
                     else:
                         self.send_json(200, session.storage.get_history())
+                elif action == "dashboard":
+                    d = session.to_dict()
+                    diff = d.get("diffMeters")
+                    comp = None
+                    if diff is not None:
+                        comp = {
+                            "distanceMeters": diff,
+                            "distanceKm": round(diff / 1000.0, 2),
+                            "text": f"{diff / 1000.0:.2f} km coordinate difference"
+                        }
+                    payload = {
+                        "version": VERSION,
+                        "session": {
+                            "id": session.sid,
+                            "status": session.status,
+                            "created_at": session.created_at,
+                            "expires_at": session.expires_at,
+                            "uptime_seconds": time.time() - session.created_at,
+                            "connected": session.connected,
+                            "client_ip": session.client_ip,
+                            "gps_updates": session.gps_updates,
+                            "first_seen": session.first_seen,
+                            "last_seen": session.last_seen,
+                        },
+                        "gps": {
+                            "current": session.current_fix,
+                            "best": session.best_fix or session.current_fix,
+                            "updates": session.storage.get_history()
+                        },
+                        "ip": session.ip_info,
+                        "browser": session.browser_info.to_dict() if session.browser_info else None,
+                        "comparison": comp
+                    }
+                    self.send_json(200, payload)
                 elif action is None:
                     self.send_json(200, session.to_dict())
                 else:

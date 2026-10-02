@@ -3,57 +3,223 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>LOCLX Security Dashboard v2.4.8</title>
+<title>LOCLX Security &amp; OSINT Dashboard</title>
 <link rel="stylesheet" href="/style.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<style>
+  body {
+    overflow-y: auto !important;
+    align-items: flex-start !important;
+    padding: 16px;
+  }
+  .dash-wrap {
+    width: 100%;
+    max-width: 960px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .dash-header {
+    background-color: var(--header-bg);
+    border: 1px solid var(--header-border);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .dash-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+  }
+  .dash-subtitle {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+  .panel {
+    background-color: var(--header-bg);
+    border: 1px solid var(--header-border);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+  }
+  .panel h2 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--header-border);
+  }
+  .grid-2 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 16px;
+  }
+  .row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    font-size: 0.875rem;
+    border-bottom: 1px dashed var(--header-border);
+  }
+  .row:last-child {
+    border-bottom: none;
+  }
+  .k {
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+  .v {
+    font-weight: 600;
+    text-align: right;
+  }
+  .v.ok { color: var(--online-green); }
+  .v.warn { color: #f59e0b; }
+  .v.err { color: #ef4444; }
+  .btns {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .btn-sm {
+    padding: 6px 12px;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #ffffff;
+    background-color: var(--accent-blue);
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+  }
+  .btn-sm:hover {
+    background-color: var(--accent-hover);
+  }
+  .table-responsive {
+    width: 100%;
+    overflow-x: auto;
+  }
+  table.history-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8125rem;
+  }
+  table.history-table th, table.history-table td {
+    padding: 8px 10px;
+    text-align: left;
+    border-bottom: 1px solid var(--header-border);
+  }
+  table.history-table th {
+    color: var(--text-muted);
+    font-weight: 600;
+  }
+</style>
 </head>
 <body>
-<div class="wrap">
-<div class="tag">LOCLX v2.4.8 — Security &amp; OSINT Dashboard</div>
-
-<div class="sub">Live Session Analytics &amp; Location Discrepancy Analysis</div>
-
-<section class="panel">
-  <h2>Session Overview</h2>
-  <div class="row"><span class="k">session id</span><span class="v ok" id="dash-session-id">—</span></div>
-  <div class="row"><span class="k">status</span><span class="v" id="dash-status">—</span></div>
-  <div class="row"><span class="k">uptime</span><span class="v" id="dash-uptime">—</span></div>
-  <div class="row"><span class="k">gps updates</span><span class="v" id="dash-updates">0</span></div>
-  <div class="row"><span class="k">last fix</span><span class="v" id="dash-last-fix">—</span></div>
-  <div class="row"><span class="k">ip vs gps diff</span><span class="v warn" id="dash-diff">—</span></div>
-</section>
-
-<section class="panel">
-  <h2>Location Comparison &amp; Interpretation</h2>
-  <div class="row"><span class="k">ip location (approximate)</span><span class="v" id="dash-ip-loc">—</span></div>
-  <div class="row"><span class="k">gps location (explicit permission)</span><span class="v" id="dash-gps-loc">—</span></div>
-  <div class="row"><span class="k">discrepancy distance</span><span class="v warn" id="dash-discrepancy">—</span></div>
-  <p class="dim" style="font-size: 11px; margin-top: 8px;">
-    <strong>Interpretation:</strong> Browser GPS provides exact device coordinates after explicit user permission grant. IP geolocation is an approximate network routing estimate and does not identify a physical individual.
-  </p>
-</section>
-
-<section class="panel">
-  <h2>Live Map &amp; Movement Trail</h2>
-  <div class="btns" style="margin-bottom:8px;">
-    <button type="button" id="btn-reset-view">Reset View</button>
-    <button type="button" id="btn-toggle-fullscreen">Fullscreen Map</button>
+<div class="dash-wrap">
+  <div class="dash-header">
+    <div>
+      <div class="dash-title">LOCLX Security &amp; OSINT Dashboard</div>
+      <div class="dash-subtitle">Authorized Security Testing &amp; Location Analysis</div>
+    </div>
+    <div id="dash-version-tag" class="k" style="font-size: 0.8rem;">v2.4.8</div>
   </div>
-  <div id="mapContainer" style="height:350px; border-radius:4px;"></div>
-</section>
 
-<section class="panel">
-  <h2>Session History &amp; Data Export</h2>
-  <div class="btns">
-    <button type="button" id="btn-export-json">Export JSON</button>
-    <button type="button" id="btn-export-csv">Export CSV</button>
-    <button type="button" id="btn-clear-history">Clear History</button>
+  <div class="grid-2">
+    <!-- Session Overview -->
+    <section class="panel">
+      <h2>Session Overview</h2>
+      <div class="row"><span class="k">Session ID</span><span class="v ok" id="dash-session-id">—</span></div>
+      <div class="row"><span class="k">Status</span><span class="v" id="dash-status">—</span></div>
+      <div class="row"><span class="k">Connection</span><span class="v" id="dash-connected">—</span></div>
+      <div class="row"><span class="k">Uptime</span><span class="v" id="dash-uptime">—</span></div>
+      <div class="row"><span class="k">GPS Updates</span><span class="v" id="dash-updates">0</span></div>
+      <div class="row"><span class="k">Last Fix</span><span class="v" id="dash-last-fix">—</span></div>
+      <div class="row"><span class="k">Permission State</span><span class="v" id="dash-permission-state">—</span></div>
+    </section>
+
+    <!-- Discrepancy & Interpretation -->
+    <section class="panel">
+      <h2>Location Discrepancy Analysis</h2>
+      <div class="row"><span class="k">IP Location (Approximate)</span><span class="v" id="dash-ip-loc-summary">—</span></div>
+      <div class="row"><span class="k">Browser GPS (Permission)</span><span class="v" id="dash-gps-loc-summary">—</span></div>
+      <div class="row"><span class="k">Coordinate Difference</span><span class="v warn" id="dash-discrepancy">—</span></div>
+      <p class="dash-subtitle" style="margin-top: 12px; line-height: 1.4;">
+        <strong>Interpretation:</strong> Browser GPS provides coordinates after explicit user permission grant. IP geolocation is an approximate network routing estimate and does not identify a physical individual.
+      </p>
+    </section>
   </div>
-  <div id="historyList" style="margin-top:10px; max-height:160px; overflow:auto; font-size:12px;" class="dim"></div>
-</section>
 
-<p><a href="/" class="btn-link">&larr; Return to Lab Page</a></p>
+  <div class="grid-2">
+    <!-- Browser GPS -->
+    <section class="panel">
+      <h2>Browser GPS — Permission Based</h2>
+      <div class="row"><span class="k">Source</span><span class="v" id="dash-gps-source">Browser Geolocation</span></div>
+      <div class="row"><span class="k">Latitude</span><span class="v" id="dash-gps-lat">—</span></div>
+      <div class="row"><span class="k">Longitude</span><span class="v" id="dash-gps-lon">—</span></div>
+      <div class="row"><span class="k">Accuracy</span><span class="v" id="dash-gps-acc">—</span></div>
+      <div class="row"><span class="k">Altitude</span><span class="v" id="dash-gps-alt">—</span></div>
+      <div class="row"><span class="k">Speed</span><span class="v" id="dash-gps-speed">—</span></div>
+      <div class="row"><span class="k">Heading</span><span class="v" id="dash-gps-hdg">—</span></div>
+      <div class="row"><span class="k">Timestamp</span><span class="v" id="dash-gps-time">—</span></div>
+    </section>
+
+    <!-- IP Geolocation -->
+    <section class="panel">
+      <h2>IP Geolocation — Approximate</h2>
+      <div class="row"><span class="k">Source</span><span class="v" id="dash-ip-source">IP Geolocation API</span></div>
+      <div class="row"><span class="k">Public IP</span><span class="v" id="dash-ip-address">—</span></div>
+      <div class="row"><span class="k">Country</span><span class="v" id="dash-ip-country">—</span></div>
+      <div class="row"><span class="k">Region</span><span class="v" id="dash-ip-region">—</span></div>
+      <div class="row"><span class="k">City</span><span class="v" id="dash-ip-city">—</span></div>
+      <div class="row"><span class="k">ISP / Org</span><span class="v" id="dash-ip-isp">—</span></div>
+      <div class="row"><span class="k">Latitude</span><span class="v" id="dash-ip-lat">—</span></div>
+      <div class="row"><span class="k">Longitude</span><span class="v" id="dash-ip-lon">—</span></div>
+    </section>
+  </div>
+
+  <!-- Live Map -->
+  <section class="panel">
+    <h2>Live Map &amp; Movement Trail</h2>
+    <div class="btns" style="margin-bottom:12px;">
+      <button type="button" class="btn-sm" id="btn-reset-view">Reset View</button>
+      <button type="button" class="btn-sm" id="btn-fit-bounds">Fit Bounds</button>
+      <button type="button" class="btn-sm" id="btn-toggle-fullscreen">Fullscreen Map</button>
+    </div>
+    <div id="mapContainer" style="height:380px; border-radius:var(--radius-sm); border:1px solid var(--header-border);"></div>
+  </section>
+
+  <!-- Session History & Export -->
+  <section class="panel">
+    <h2>Session History &amp; Export</h2>
+    <div class="btns" style="margin-bottom:12px;">
+      <button type="button" class="btn-sm" id="btn-export-json">Export JSON</button>
+      <button type="button" class="btn-sm" id="btn-export-csv">Export CSV</button>
+      <button type="button" class="btn-sm" id="btn-clear-history">Clear History</button>
+    </div>
+    <div class="table-responsive">
+      <table class="history-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Time</th>
+            <th>Latitude</th>
+            <th>Longitude</th>
+            <th>Accuracy</th>
+            <th>Source</th>
+          </tr>
+        </thead>
+        <tbody id="historyTableBody">
+          <tr><td colspan="6" class="k" style="text-align:center;">No recorded updates in history buffer.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <p><a href="/" class="btn-link" style="color:var(--accent-blue); text-decoration:none; font-weight:600; font-size:0.875rem;">&larr; Return to Lab Page</a></p>
 </div>
 <script src="/dashboard.js"></script>
 </body>

@@ -125,7 +125,65 @@ class TestServer(unittest.TestCase):
         with urllib.request.urlopen(req) as resp:
             self.assertEqual(resp.status, 200)
             body = resp.read().decode("utf-8")
-            self.assertIn("LOCLX Security Dashboard", body)
+            self.assertIn("LOCLX Security &amp; OSINT Dashboard", body)
+            self.assertIn("https://unpkg.com/leaflet@1.9.4/dist/leaflet.js", body)
+            self.assertIn("Browser GPS — Permission Based", body)
+            self.assertIn("IP Geolocation — Approximate", body)
+
+    def test_dashboard_api_and_session_isolation(self):
+        sess_a = self.sm.create_session()
+        sess_b = self.sm.create_session()
+
+        # Update sess_a with GPS and IP
+        sess_a.update_gps({"lat": 10.123456, "lon": 76.123456, "accuracy": 15.0})
+        sess_a.set_ip_info({"ip": "1.2.3.4", "lat": 12.0, "lon": 77.0, "city": "TestCity", "country": "TestCountry"})
+
+        # Call GET /api/session/LX-A.../dashboard for sess_a
+        req_a = urllib.request.Request(f"{self.server_url}api/session/{sess_a.sid}/dashboard")
+        with urllib.request.urlopen(req_a) as resp:
+            self.assertEqual(resp.status, 200)
+            data = json.loads(resp.read().decode("utf-8"))
+            self.assertEqual(data["session"]["id"], sess_a.sid)
+            self.assertEqual(data["gps"]["current"]["lat"], 10.123456)
+            self.assertEqual(data["ip"]["ip"], "1.2.3.4")
+            self.assertIsNotNone(data["comparison"])
+            self.assertIn("km coordinate difference", data["comparison"]["text"])
+
+        # Call GET /api/session/LX-B.../dashboard for sess_b (assert sess_a data is NOT exposed)
+        req_b = urllib.request.Request(f"{self.server_url}api/session/{sess_b.sid}/dashboard")
+        with urllib.request.urlopen(req_b) as resp:
+            self.assertEqual(resp.status, 200)
+            data_b = json.loads(resp.read().decode("utf-8"))
+            self.assertEqual(data_b["session"]["id"], sess_b.sid)
+            self.assertIsNone(data_b["gps"]["current"])
+            self.assertIsNone(data_b["ip"])
+            self.assertIsNone(data_b["comparison"])
+
+        # Test invalid SID -> 400
+        req_invalid = urllib.request.Request(f"{self.server_url}api/session/invalid-sid-format/dashboard")
+        with self.assertRaises(urllib.error.HTTPError) as cm:
+            urllib.request.urlopen(req_invalid)
+        self.assertEqual(cm.exception.code, 400)
+
+        # Test non-existent SID -> 404
+        req_nonexistent = urllib.request.Request(f"{self.server_url}api/session/LX-FFFFFF/dashboard")
+        with self.assertRaises(urllib.error.HTTPError) as cm:
+            urllib.request.urlopen(req_nonexistent)
+        self.assertEqual(cm.exception.code, 404)
+
+        # Test export format json & csv for sess_a
+        req_json = urllib.request.Request(f"{self.server_url}api/session/{sess_a.sid}/export?format=json")
+        with urllib.request.urlopen(req_json) as resp:
+            self.assertEqual(resp.status, 200)
+            history = json.loads(resp.read().decode("utf-8"))
+            self.assertEqual(len(history), 1)
+
+        req_csv = urllib.request.Request(f"{self.server_url}api/session/{sess_a.sid}/export?format=csv")
+        with urllib.request.urlopen(req_csv) as resp:
+            self.assertEqual(resp.status, 200)
+            csv_text = resp.read().decode("utf-8")
+            self.assertIn("timestamp,lat,lon,accuracy", csv_text)
+            self.assertIn("10.123456", csv_text)
 
     def test_api_active_session(self):
         req = urllib.request.Request(f"{self.server_url}api/session/active")

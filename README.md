@@ -32,6 +32,7 @@ cd loclx
 ./install.sh
 source .venv/bin/activate
 loclx --version
+loclx start --tunnel
 ```
 
 ---
@@ -114,6 +115,7 @@ cd loclx
 ./install.sh
 source .venv/bin/activate
 loclx --version
+loclx start --tunnel
 ```
 
 ### METHOD B — Manual Virtual Environment Installation
